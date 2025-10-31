@@ -1,0 +1,54 @@
+<?php /** @var $block \Merlin\ProductFinder\Block\Adminhtml\System\Config\Sortable */
+$el = $block->getData('element');
+$value = $el->getEscapedValue();
+$val = $value ?: '["category","product_type","color","price","extras"]';
+$sections = @json_decode($val, true);
+if (!is_array($sections) || !$sections) {
+    $sections = ["category","product_type","color","price","extras"];
+}
+$labels = [
+    'category' => 'Top Category',
+    'product_type' => 'Product Type',
+    'color' => 'Color',
+    'price' => 'Price',
+    'extras' => 'Extras',
+];
+?>
+<div class="merlin-sortable-wrap" data-target="<?= $el->getHtmlId() ?>">
+    <input type="hidden" id="<?= $el->getHtmlId() ?>" name="<?= $el->getName() ?>" value='<?= $val ?>' />
+    <ul class="merlin-sortable admin__control-list" id="<?= $el->getHtmlId() ?>_list">
+        <?php foreach ($sections as $key): ?>
+            <li class="merlin-sort-item" data-key="<?= $block->escapeHtmlAttr($key) ?>">
+                <?= $block->escapeHtml($labels[$key] ?? $key) ?>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</div>
+
+<script type="text/x-magento-init">
+{
+    "#<?= $el->getHtmlId() ?>_list": {
+        "Magento_Ui/js/lib/jquery/jquery-ui": {}
+    }
+}
+</script>
+
+<script>
+require(['jquery', 'jquery/ui'], function($){
+    $(function(){
+        var $ul = $('#<?= $el->getHtmlId() ?>_list');
+        var $input = $('#<?= $el->getHtmlId() ?>');
+        $ul.sortable({
+            update: function(){
+                var arr = [];
+                $ul.find('li').each(function(){ arr.push($(this).data('key')); });
+                $input.val(JSON.stringify(arr));
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.merlin-sortable .merlin-sort-item{background:#f8f8f8;border:1px solid #ddd;padding:6px 10px;margin:4px;border-radius:4px;cursor:move;}
+</style>
