@@ -1,0 +1,17 @@
+{
+  "name": "merlin/module-product-finder",
+  "description": "Drill-down Product Finder with admin-driven layout, attribute mapping, price slider, pagination & sorting.",
+  "type": "magento2-module",
+  "version": "1.1.0",
+  "require": {
+    "php": ">=8.1",
+    "magento/framework": "^103.0",
+    "magento/module-catalog": "*",
+    "magento/module-store": "*",
+    "magento/module-theme": "*"
+  },
+  "autoload": {
+    "files": ["registration.php"],
+    "psr-4": { "Merlin\\ProductFinder\\": "" }
+  }
+}
