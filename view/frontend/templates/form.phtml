@@ -1,0 +1,123 @@
+<?php 
+/** @var $block \Merlin\ProductFinder\Block\Form */
+$sections        = $block->getSections();
+$pre             = $block->getPreHtml();
+$post            = $block->getPostHtml();
+$productTypeAttr = $block->getConfig('mapping/product_type');
+$colorAttr       = $block->getConfig('mapping/color');
+$extras          = json_decode($block->getConfig('mapping/extras') ?: '{}', true) ?: [];
+$min             = (float)($block->getConfig('mapping/price_min') ?: 0);
+$max             = (float)($block->getConfig('mapping/price_max') ?: 2000);
+$step            = (float)($block->getConfig('mapping/price_step') ?: 10);
+$action          = $block->getUrl('product-finder/index/results');
+?>
+
+<div class="merlin-finder">
+    <?php if ($pre): ?>
+        <div class="merlin-finder__pre"><?= /* @noEscape */ $pre ?></div>
+    <?php endif; ?>
+
+    <form method="get" action="<?= $action ?>" id="merlin-finder-form" class="merlin-grid merlin-pf-form">
+        <?php $stepNum = 1; ?>
+
+        <?php foreach ($sections as $section): ?>
+            <?php if ($section === 'category'): ?>
+                <div class="merlin-field merlin-pf-step" data-step="<?= $stepNum ?>">
+                    <label><?= __('Category') ?></label>
+                    <select name="category_id" class="admin__control-select">
+                        <option value="">-- <?= __('Any') ?> --</option>
+                        <?php foreach ($block->getTopCategories() as $cat): ?>
+                            <option value="<?= (int)$cat['id'] ?>"><?= $block->escapeHtml($cat['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php $stepNum++; ?>
+
+            <?php elseif ($section === 'product_type' && $productTypeAttr): ?>
+                <div class="merlin-field merlin-pf-step" data-step="<?= $stepNum ?>">
+                    <label><?= __('Product Type') ?></label>
+                    <select name="product_type[]" multiple class="admin__control-multiselect">
+                        <?php foreach ($block->getAttributeOptions($productTypeAttr) as $opt): ?>
+                            <option value="<?= $block->escapeHtmlAttr($opt['value']) ?>"><?= $block->escapeHtml($opt['label']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php $stepNum++; ?>
+
+            <?php elseif ($section === 'color' && $colorAttr): ?>
+                <div class="merlin-field merlin-pf-step" data-step="<?= $stepNum ?>">
+                    <label><?= __('Colour') ?></label>
+                    <select name="color[]" multiple class="admin__control-multiselect">
+                        <?php foreach ($block->getAttributeOptions($colorAttr) as $opt): ?>
+                            <option value="<?= $block->escapeHtmlAttr($opt['value']) ?>"><?= $block->escapeHtml($opt['label']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php $stepNum++; ?>
+
+            <?php elseif ($section === 'price'): ?>
+                <div class="merlin-field merlin-pf-step" data-step="<?= $stepNum ?>">
+                    <label><?= __('Price Range') ?></label>
+                    <div class="merlin-price">
+                        <input type="number"
+                               step="<?= $step ?>"
+                               min="<?= $min ?>"
+                               max="<?= $max ?>"
+                               name="price_min"
+                               placeholder="<?= __('Min') ?>" />
+                        <span>–</span>
+                        <input type="number"
+                               step="<?= $step ?>"
+                               min="<?= $min ?>"
+                               max="<?= $max ?>"
+                               name="price_max"
+                               placeholder="<?= __('Max') ?>" />
+                        <div id="merlin-price-slider"
+                             data-min="<?= $min ?>"
+                             data-max="<?= $max ?>"
+                             data-step="<?= $step ?>"></div>
+                    </div>
+                </div>
+                <?php $stepNum++; ?>
+
+            <?php elseif ($section === 'extras' && $extras): ?>
+                <?php foreach ($extras as $key => $attrCode): ?>
+                    <div class="merlin-field merlin-pf-step" data-step="<?= $stepNum ?>">
+                        <label><?= $block->escapeHtml(ucwords(str_replace('_',' ', $key))) ?></label>
+                        <select name="<?= $block->escapeHtmlAttr($key) ?>[]" multiple class="admin__control-multiselect">
+                            <?php foreach ($block->getAttributeOptions($attrCode) as $opt): ?>
+                                <option value="<?= $block->escapeHtmlAttr($opt['value']) ?>"><?= $block->escapeHtml($opt['label']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php $stepNum++; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        <?php endforeach; ?>
+
+        <div class="merlin-actions merlin-pf-step" data-step="<?= $stepNum ?>">
+            <button type="submit" class="action primary"><span><?= __('Find Products') ?></span></button>
+            <a href="#" id="merlin-clear" class="action secondary"><?= __('Clear') ?></a>
+        </div>
+    </form>
+
+    <?php if ($post): ?>
+        <div class="merlin-finder__post"><?= /* @noEscape */ $post ?></div>
+    <?php endif; ?>
+</div>
+
+<script type="text/x-magento-init">
+{
+    "#merlin-price-slider": {
+        "Merlin_ProductFinder/js/price-slider": {
+            "inputs": ["input[name=price_min]","input[name=price_max]"]
+        }
+    },
+    "#merlin-finder-form": {
+        "Merlin_ProductFinder/js/form": {}
+    },
+    "#merlin-finder-form": {
+        "Merlin_ProductFinder/js/form-progressive": {}
+    }
+}
+</script>
