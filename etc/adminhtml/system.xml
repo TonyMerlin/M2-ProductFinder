@@ -15,6 +15,11 @@
                     <label>Show Layered Navigation on Results</label>
                     <source_model>Merlin\ProductFinder\Model\Config\Source\YesNo</source_model>
                 </field>
+                <field id="allowed_attribute_sets" translate="label" type="multiselect" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Allowed Attribute Sets for Finder</label>
+                    <source_model>Merlin\ProductFinder\Model\Config\Source\AttributeSets</source_model>
+                    <comment>Select which attribute sets can be used as the first step in the Product Finder.</comment>
+                </field>
                 <field id="top_categories" translate="label" type="multiselect" sortOrder="30" can_be_empty="1" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Top-Level Categories (Cooking, Refrigeration, etc.)</label>
                     <source_model>Merlin\ProductFinder\Model\Config\Source\TopCategories</source_model>
