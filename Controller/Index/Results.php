@@ -55,7 +55,11 @@ class Results extends Action
         $collection->addAttributeToSelect(['name','price','small_image']);
         $collection->addAttributeToFilter('status', 1);
         $collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
-
+       
+        if (!empty($params['attribute_set_id'])) {
+        $collection->addAttributeToFilter('attribute_set_id', (int)$params['attribute_set_id']);
+        }
+        
         // Category filter: include all descendants of the chosen top category
         if (!empty($params['category_id'])) {
             $catId = (int)$params['category_id'];
