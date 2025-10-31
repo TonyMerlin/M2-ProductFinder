@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/config.xsd">
+    <default>
+        <merlin_productfinder>
+            <general>
+                <enabled>1</enabled>
+                <show_layered_nav>0</show_layered_nav>
+                <top_categories></top_categories>
+            </general>
+            <layout>
+                <sections>["category","product_type","color","price","extras"]</sections>
+                <pre_html></pre_html>
+                <post_html></post_html>
+            </layout>
+            <mapping>
+                <product_type></product_type>
+                <color>color</color>
+                <extras>{"brand":"manufacturer"}</extras>
+                <price_attribute>price</price_attribute>
+                <price_step>10</price_step>
+                <price_min>0</price_min>
+                <price_max>2000</price_max>
+            </mapping>
+        </merlin_productfinder>
+    </default>
+</config>
