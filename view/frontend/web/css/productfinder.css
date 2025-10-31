@@ -1,0 +1,70 @@
+/* 3-up grid for results */
+.merlin-grid-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));  /* ✅ exactly 3 per row on desktop */
+    gap: 16px;
+    margin: 20px 0;
+}
+
+/* responsive: 2 per row on medium screens */
+@media (max-width: 1024px) {
+    .merlin-grid-cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* mobile: 1 per row */
+@media (max-width: 640px) {
+    .merlin-grid-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
+.merlin-card {
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.merlin-card__image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+    padding: 10px;
+    height: 140px;      /* we already capped image height */
+    overflow: hidden;
+}
+
+.merlin-card__image img {
+    max-height: 120px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+.merlin-card__body {
+    padding: 10px 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.merlin-card__title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.3;
+}
+
+.merlin-card__price {
+    font-weight: 600;
+}
+
+.merlin-card__cta {
+    margin-top: auto;
+    align-self: flex-start;
+}
