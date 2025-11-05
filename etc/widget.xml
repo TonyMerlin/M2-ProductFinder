@@ -2,14 +2,20 @@
 <widgets xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Widget:etc/widget_file.xsd">
 
-    <widget id="merlin_productfinder_widget" class="Merlin\ProductFinder\Block\Widget\Finder" is_enabled="true">
+    <widget id="merlin_productfinder_widget"
+            class="Merlin\ProductFinder\Block\Widget\Finder"
+            is_enabled="true"
+            placeholder_image="">
         <label translate="true">Merlin Product Finder</label>
-        <description translate="true">Embed the Product Finder anywhere (CMS pages, static blocks, layout updates).</description>
+        <description translate="true">
+            Embed the Product Finder anywhere (CMS pages, static blocks, layout updates).
+        </description>
 
         <parameters>
             <parameter name="title" xsi:type="text" visible="true" sort_order="10" required="false">
                 <label translate="true">Heading (optional)</label>
             </parameter>
+
             <parameter name="show_pre_post" xsi:type="select" visible="true" sort_order="20" required="false">
                 <label translate="true">Show Pre/Post Custom HTML</label>
                 <options>
@@ -21,14 +27,14 @@
                     </option>
                 </options>
             </parameter>
-            <parameter name="sections_override" xsi:type="text" visible="true" sort_order="30" required="false">
-                <label translate="true">Sections JSON override (optional)</label>
-                <description translate="true">Example: ["category","product_type","color","price","extras"]. Leave empty to use config order.</description>
-            </parameter>
         </parameters>
 
+        <!-- Optional: declare common containers where this widget can be placed -->
         <containers>
-            <container name="content.top" htmlTag="div" htmlClass="merlin-pf-widget" />
+            <container name="content" />
+            <container name="content.top" />
+            <container name="content.bottom" />
+            <container name="sidebar.additional" />
         </containers>
     </widget>
 
