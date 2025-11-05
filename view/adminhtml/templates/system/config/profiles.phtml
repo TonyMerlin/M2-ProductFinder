@@ -1,0 +1,59 @@
+<?php
+/** @var $block \Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\Profiles */
+$attrSets  = $block->getProductAttributeSets();
+$current   = $block->getProfilesJson();
+$fieldId   = $block->getHtmlId();
+?>
+<div class="merlin-pf-profiles"
+     data-mpf-profiles
+     data-field-id="<?= $block->escapeHtmlAttr($fieldId) ?>"
+     data-initial='<?= $block->escapeHtmlAttr($current) ?>'
+     data-attrsets='<?= $block->escapeHtmlAttr(json_encode($attrSets)) ?>'>
+
+    <!-- IMPORTANT: render Magento's real field and just hide it -->
+    <div style="display:block">
+        <?= /* This is the real <textarea> with correct name & scope */ $block->getElement()->getElementHtml(); ?>
+    </div>
+
+    <div class="admin__field">
+        <label class="admin__field-label">
+            <span><?= __('Attribute Set Profiles') ?></span>
+        </label>
+        <div class="admin__field-control">
+            <p><?= __('Select an attribute set, add sections/extras, then Save Config.') ?></p>
+
+            <div class="merlin-pf-profiles__top">
+                <label><?= __('Attribute Set') ?></label>
+                <select data-mpf-attrset>
+                    <option value=""><?= __('-- choose --') ?></option>
+                    <?php foreach ($attrSets as $set): ?>
+                        <option value="<?= (int)$set['id'] ?>"><?= $block->escapeHtml($set['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="button" class="action-default" data-mpf-new-profile>
+                    <?= __('New / Reset Profile For This Set') ?>
+                </button>
+            </div>
+
+            <div class="merlin-pf-profiles__body" data-mpf-sections></div>
+
+            <div class="merlin-pf-profiles__actions">
+                <button type="button" class="action-add" data-mpf-add-section>
+                    <?= __('Add Section') ?>
+                </button>
+                <button type="button" class="action-add" data-mpf-add-extra>
+                    <?= __('Add Extra Attribute') ?>
+                </button>
+                <button type="button" class="action-secondary" data-mpf-save-json>
+                    <?= __('Save to JSON Field') ?>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/x-magento-init">
+{
+    "[data-mpf-profiles]": { "Merlin_ProductFinder/js/profiles": {} }
+}
+</script>
