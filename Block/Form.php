@@ -12,6 +12,7 @@ use Magento\Eav\Model\ResourceModel\Entity\Attribute\Set\CollectionFactory as At
 use Magento\Framework\View\Element\Template;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
+use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory as ProductCollectionFactory;
 use Merlin\ProductFinder\Helper\Data;
 
 class Form extends Template
@@ -35,6 +36,7 @@ class Form extends Template
         AttributeSetCollectionFactory $attrSetCollectionFactory,
         EntityTypeFactory $entityTypeFactory,
         AttributeRepositoryInterface $attributeRepository,
+        ProductCollectionFactory $productCollectionFactory,
         array $data = []
     ) {
         parent::__construct($context, $data);
@@ -45,6 +47,7 @@ class Form extends Template
         $this->attrSetCollectionFactory  = $attrSetCollectionFactory;
         $this->entityTypeFactory         = $entityTypeFactory;
         $this->attributeRepository       = $attributeRepository;
+        $this->productCollectionFactory  = $productCollectionFactory;
     }
 
     /* ==================== Basic passthroughs ==================== */
@@ -241,6 +244,140 @@ class Form extends Template
         }
         return $out;
     }
+
+/**
+ * Build a per-attribute-set, per-attribute list of option {value,label}
+ * restricted to products that are in stock, enabled and visible.
+ *
+ * Shape:
+ * [
+ *   "<setId>" => [
+ *      "<attr_code>" => [ [value => "12", label => "Black"], ... ],
+ *      ...
+ *   ],
+ *   ...
+ * ]
+ */
+public function getOptionsBySetFilteredByStock(): array
+{
+    $profiles = $this->getAttributeSetProfiles();
+    if (!$profiles || !is_array($profiles)) {
+        return [];
+    }
+
+    $websiteId = (int)$this->storeManager->getStore()->getWebsiteId();
+
+    $result = [];
+
+    foreach ($profiles as $setId => $profile) {
+        $setId = (string)$setId;
+        if (!is_array($profile)) {
+            continue;
+        }
+
+        // Collect attribute codes used by this profile (sections map + extras)
+        $codes = [];
+        $sections = isset($profile['sections']) && is_array($profile['sections']) ? $profile['sections'] : [];
+        $map      = isset($profile['map']) && is_array($profile['map']) ? $profile['map'] : [];
+        foreach ($sections as $logical) {
+            $logical = (string)$logical;
+            if ($logical === '') continue;
+            $mapped = $map[$logical] ?? $map[strtolower($logical)] ?? $logical;
+            if ($mapped) $codes[] = (string)$mapped;
+        }
+        $extras = isset($profile['extras']) && is_array($profile['extras']) ? $profile['extras'] : [];
+        foreach ($extras as $extraCode) {
+            if ($extraCode) $codes[] = (string)$extraCode;
+        }
+
+        $codes = array_values(array_unique(array_filter(array_map('trim', $codes))));
+        if (empty($codes)) {
+            $result[$setId] = [];
+            continue;
+        }
+
+        // Build product collection for this set, in-stock, enabled, visible
+        $col = $this->productCollectionFactory->create();
+        $col->addAttributeToSelect($codes);
+        $col->addAttributeToFilter('status', 1);
+        $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
+        $col->addAttributeToFilter('attribute_set_id', (int)$setId);
+
+        // Join legacy stock status (works with MSI-populated view on most setups)
+        // Note: using inner join to enforce only in-stock (stock_status = 1)
+        $col->getSelect()->join(
+            ['css' => $col->getTable('cataloginventory_stock_status')],
+            'css.product_id = e.entity_id AND css.website_id = ' . (int)$websiteId,
+            ['stock_status']
+        )->where('css.stock_status = 1');
+
+        // Collect used option IDs per attribute
+        $used = [];
+        foreach ($codes as $code) {
+            $used[$code] = [];
+        }
+
+        foreach ($col as $product) {
+            foreach ($codes as $code) {
+                $val = $product->getData($code);
+                if ($val === null || $val === '' || $val === false) {
+                    continue;
+                }
+                if (is_array($val)) {
+                    foreach ($val as $v) {
+                        if ($v !== '' && $v !== null) $used[$code][(string)$v] = true;
+                    }
+                } else {
+                    // multi-selects are comma separated strings
+                    $parts = explode(',', (string)$val);
+                    foreach ($parts as $p) {
+                        $p = trim($p);
+                        if ($p !== '') $used[$code][$p] = true;
+                    }
+                }
+            }
+        }
+
+        // Convert used IDs to [{value,label}] using attribute options
+        $result[$setId] = [];
+        foreach ($codes as $code) {
+            $ids = array_keys($used[$code] ?? []);
+            if (empty($ids)) {
+                $result[$setId][$code] = [];
+                continue;
+            }
+            // Index options by value for quick filter
+            $allOpts = $this->getAttributeOptions($code);
+            if (empty($allOpts)) {
+                $result[$setId][$code] = [];
+                continue;
+            }
+            $present = [];
+            $allowed = array_flip($ids);
+            foreach ($allOpts as $opt) {
+                $v = isset($opt['value']) ? (string)$opt['value'] : '';
+                if (isset($allowed[$v])) {
+                    // keep raw label (may include apostrophes etc.)
+                    $present[] = ['value' => $v, 'label' => (string)($opt['label'] ?? $v)];
+                }
+            }
+            $result[$setId][$code] = $present;
+        }
+    }
+
+    return $result;
+}
+
+/** Convenience for template to emit compact JSON safely. */
+public function getOptionsBySetFilteredByStockJson(): string
+{
+    $map = $this->getOptionsBySetFilteredByStock();
+    try {
+        return (string)json_encode($map, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    } catch (\Throwable $e) {
+        return '{}';
+    }
+}
 
     /* ==================== Attribute options (robust + swatch-safe) ==================== */
     /**
