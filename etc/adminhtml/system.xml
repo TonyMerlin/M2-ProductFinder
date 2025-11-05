@@ -1,74 +1,205 @@
 <?xml version="1.0"?>
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
-        <section id="merlin_productfinder" translate="label" type="text" sortOrder="999" showInDefault="1" showInWebsite="1" showInStore="1">
+        <section id="merlin_productfinder"
+                 translate="label"
+                 type="text"
+                 sortOrder="999"
+                 showInDefault="1"
+                 showInWebsite="1"
+                 showInStore="1">
             <label>Merlin Product Finder</label>
             <tab>catalog</tab>
             <resource>Merlin_ProductFinder::config</resource>
-            <group id="general" translate="label" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+
+            <!-- ================== GENERAL ================== -->
+            <group id="general"
+                   translate="label"
+                   sortOrder="10"
+                   showInDefault="1"
+                   showInWebsite="1"
+                   showInStore="1">
                 <label>General</label>
-                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="enabled"
+                       translate="label"
+                       type="select"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Enable</label>
                     <source_model>Merlin\ProductFinder\Model\Config\Source\YesNo</source_model>
                 </field>
-                <field id="show_layered_nav" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="show_layered_nav"
+                       translate="label"
+                       type="select"
+                       sortOrder="20"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Show Layered Navigation on Results</label>
                     <source_model>Merlin\ProductFinder\Model\Config\Source\YesNo</source_model>
                 </field>
-                <field id="allowed_attribute_sets" translate="label" type="multiselect" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
+
+                <!-- which attribute sets can even appear on the frontend -->
+                <field id="allowed_attribute_sets"
+                       translate="label"
+                       type="multiselect"
+                       sortOrder="30"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="0">
                     <label>Allowed Attribute Sets for Finder</label>
                     <source_model>Merlin\ProductFinder\Model\Config\Source\AttributeSets</source_model>
-                    <comment>Select which attribute sets can be used as the first step in the Product Finder.</comment>
+                    <comment>Select which product attribute sets can be chosen as the first step in the Product Finder.</comment>
                 </field>
-                <field id="top_categories" translate="label" type="multiselect" sortOrder="30" can_be_empty="1" showInDefault="1" showInWebsite="1" showInStore="1">
-                    <label>Top-Level Categories (Cooking, Refrigeration, etc.)</label>
-                    <source_model>Merlin\ProductFinder\Model\Config\Source\TopCategories</source_model>
-                    <comment>Select which categories appear as first step.</comment>
+
+                <!-- new: per-attribute-set profiles (JSON) -->
+                <field id="attribute_set_profiles"
+                       translate="label"
+                       type="textarea"
+                       sortOrder="40"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
+                       <label>Attribute Set Profiles (JSON)</label>
+                       <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\Profiles</frontend_model>
+                       <comment>Build per-attribute-set finder profiles.</comment>
                 </field>
             </group>
-            <group id="layout" translate="label" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+
+            <!-- ================== FORM LAYOUT ================== -->
+            <group id="layout"
+                   translate="label"
+                   sortOrder="20"
+                   showInDefault="1"
+                   showInWebsite="1"
+                   showInStore="1">
                 <label>Form Layout &amp; Content</label>
-                <field id="sections" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="sections"
+                       translate="label"
+                       type="text"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Sections (Drag to Reorder)</label>
                     <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Sortable</frontend_model>
-                    <comment>Saved as JSON array, e.g. ["category","product_type","color","price","extras"]</comment>
+                    <comment>This is kept for backward compatibility, but per-attribute-set profiles will override.</comment>
                 </field>
-                <field id="pre_html" translate="label" type="editor" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="pre_html"
+                       translate="label"
+                       type="editor"
+                       sortOrder="20"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Custom HTML (Above Form)</label>
                     <show_in_wysiwyg>1</show_in_wysiwyg>
                 </field>
-                <field id="post_html" translate="label" type="editor" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="post_html"
+                       translate="label"
+                       type="editor"
+                       sortOrder="30"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Custom HTML (Below Form)</label>
                     <show_in_wysiwyg>1</show_in_wysiwyg>
                 </field>
             </group>
-            <group id="mapping" translate="label" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Attribute Mapping</label>
-                <field id="product_type" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+
+            <!-- ================== LEGACY MAPPING (optional to remove later) ================== -->
+            <group id="mapping"
+                   translate="label"
+                   sortOrder="30"
+                   showInDefault="1"
+                   showInWebsite="1"
+                   showInStore="1">
+                <label>Attribute Mapping (Global / Legacy)</label>
+
+                <field id="product_type"
+                       translate="label"
+                       type="text"
+                       sortOrder="10"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Product Type Attribute Code</label>
+                    <comment>Deprecated if using per-attribute-set profiles.</comment>
                 </field>
-                <field id="color" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="color"
+                       translate="label"
+                       type="text"
+                       sortOrder="20"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Color Attribute Code</label>
+                    <comment>Deprecated if using per-attribute-set profiles.</comment>
                 </field>
-                <field id="extras" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="extras"
+                       translate="label"
+                       type="text"
+                       sortOrder="30"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Extra Filters (JSON map)</label>
                     <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\AttributeMap</frontend_model>
-                    <comment>{"energy_rating":"energy_rating","brand":"manufacturer"}</comment>
+                    <comment>Deprecated. Use profiles JSON instead.</comment>
                 </field>
-                <field id="price_attribute" translate="label" type="text" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="price_attribute"
+                       translate="label"
+                       type="text"
+                       sortOrder="40"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Price Attribute</label>
-                    <comment>Usually "price"</comment>
+                    <comment>Usually "price".</comment>
                 </field>
-                <field id="price_min" translate="label" type="text" sortOrder="50" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="price_min"
+                       translate="label"
+                       type="text"
+                       sortOrder="50"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Min Price</label>
                 </field>
-                <field id="price_max" translate="label" type="text" sortOrder="60" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="price_max"
+                       translate="label"
+                       type="text"
+                       sortOrder="60"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Max Price</label>
                 </field>
-                <field id="price_step" translate="label" type="text" sortOrder="70" showInDefault="1" showInWebsite="1" showInStore="1">
+
+                <field id="price_step"
+                       translate="label"
+                       type="text"
+                       sortOrder="70"
+                       showInDefault="1"
+                       showInWebsite="1"
+                       showInStore="1">
                     <label>Price Step</label>
                 </field>
             </group>
+
         </section>
     </system>
 </config>
