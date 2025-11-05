@@ -10,6 +10,7 @@ use Magento\Eav\Api\Data\AttributeOptionInterface;
 use Magento\Eav\Model\Config as EavConfig;
 use Magento\Eav\Model\Entity\TypeFactory as EntityTypeFactory;
 use Magento\Eav\Model\ResourceModel\Entity\Attribute\Set\CollectionFactory as AttributeSetCollectionFactory;
+use Magento\Framework\App\CacheInterface;
 use Magento\Framework\View\Element\Template;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
@@ -28,6 +29,11 @@ class Form extends Template
     private EntityTypeFactory $entityTypeFactory;
     private AttributeRepositoryInterface $attributeRepository;
     private ProductCollectionFactory $productCollectionFactory;
+    private CacheInterface $cache;
+
+    private const CACHE_PREFIX = 'merlin_pf_instock_opts_';
+    private const CACHE_TAG    = 'MERLIN_PF_STOCK_OPTS';
+    private const DEFAULT_TTL  = 3600; // 1 hour
 
     public function __construct(
         Template\Context $context,
@@ -39,6 +45,7 @@ class Form extends Template
         EntityTypeFactory $entityTypeFactory,
         AttributeRepositoryInterface $attributeRepository,
         ProductCollectionFactory $productCollectionFactory,
+        CacheInterface $cache,
         array $data = []
     ) {
         parent::__construct($context, $data);
@@ -50,6 +57,7 @@ class Form extends Template
         $this->entityTypeFactory         = $entityTypeFactory;
         $this->attributeRepository       = $attributeRepository;
         $this->productCollectionFactory  = $productCollectionFactory;
+        $this->cache                     = $cache;
     }
 
     /* ==================== Basic passthroughs ==================== */
@@ -179,6 +187,75 @@ class Form extends Template
         return $out;
     }
 
+    /* ==================== Caching helpers ==================== */
+
+    /**
+     * Build a stable signature based on store/website + used codes per set.
+     */
+    private function buildProfileSignature(array $profiles, array $setIds): string
+    {
+        $used = [];
+        foreach ($setIds as $sid) {
+            $sidKey = (string)$sid;
+            $profile = $profiles[$sidKey] ?? $profiles[$sid] ?? null;
+            $codes = $this->extractProfileAttributeCodes($profile);
+            sort($codes);
+            $used[$sidKey] = $codes;
+        }
+        $payload = [
+            'store'   => (int)$this->storeManager->getStore()->getId(),
+            'website' => (int)$this->storeManager->getStore()->getWebsiteId(),
+            'sets'    => $used,
+        ];
+        return sha1(json_encode($payload));
+    }
+
+    private function makeCacheId(string $signature): string
+    {
+        return self::CACHE_PREFIX . $signature;
+    }
+
+    /**
+     * Cached wrapper for in-stock options by set.
+     */
+    public function getInStockOptionsBySetCached(array $setIds, array $profiles, int $ttl = self::DEFAULT_TTL): array
+    {
+        $setIds = array_values(array_unique(array_filter(array_map('intval', $setIds))));
+        if (!$setIds) {
+            return [];
+        }
+
+        $sig     = $this->buildProfileSignature($profiles, $setIds);
+        $cacheId = $this->makeCacheId($sig);
+
+        $cached = $this->cache->load($cacheId);
+        if ($cached !== false) {
+            try {
+                $decoded = json_decode($cached, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            } catch (\Throwable $e) {
+                // ignore, rebuild fresh
+            }
+        }
+
+        $fresh = $this->getInStockOptionsBySet($setIds, $profiles);
+
+        try {
+            $this->cache->save(
+                json_encode($fresh, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                $cacheId,
+                [self::CACHE_TAG],
+                $ttl
+            );
+        } catch (\Throwable $e) {
+            // ignore cache errors
+        }
+
+        return $fresh;
+    }
+
     /* ==================== In-stock option preloading (per set) ==================== */
 
     /**
@@ -198,138 +275,139 @@ class Form extends Template
      * @param array $profiles
      * @return array<string, array<string, array<int, array{value:string,label:string}>>>
      */
-public function getInStockOptionsBySet(array $setIds, array $profiles): array
-{
-    $setIds = array_values(array_unique(array_filter(array_map('intval', $setIds))));
-    if (!$setIds) return [];
+    public function getInStockOptionsBySet(array $setIds, array $profiles): array
+    {
+        $setIds = array_values(array_unique(array_filter(array_map('intval', $setIds))));
+        if (!$setIds) return [];
 
-    $store     = $this->storeManager->getStore();
-    $websiteId = (int)$store->getWebsiteId();
+        $store     = $this->storeManager->getStore();
+        $websiteId = (int)$store->getWebsiteId();
 
-    // Figure out MSI stock id if available (safe fallback if MSI not installed)
-    $stockTableAlias = null;
-    $stockJoinSql    = null;
-
-    try {
-        // MSI service is optional — resolve lazily
-        $om = \Magento\Framework\App\ObjectManager::getInstance();
-        if ($om->has(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class)) {
-            /** @var \Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface $stockResolver */
-            $stockResolver = $om->get(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class);
-            $stockId       = (int)$stockResolver->execute((string)$store->getWebsite()->getCode());
-            if ($stockId > 0) {
-                $stockTableAlias = 'msi_stock';
-                $stockJoinSql    = sprintf(
-                    '%1$s.sku = e.sku AND %1$s.is_salable = 1',
-                    $stockTableAlias
-                );
-                // We'll turn this into a joinInner later using table name: inventory_stock_<stockId>
-                $msiTableName = 'inventory_stock_' . $stockId;
-            }
-        }
-    } catch (\Throwable $e) {
+        // Figure out MSI stock id if available (safe fallback if MSI not installed)
         $stockTableAlias = null;
         $stockJoinSql    = null;
-    }
+        $msiTableName    = null;
 
-    $result = [];
-
-    foreach ($setIds as $sid) {
-        $sidKey    = (string)$sid;
-        $profile   = $profiles[$sidKey] ?? $profiles[$sid] ?? null;
-        $attrCodes = $this->extractProfileAttributeCodes($profile);
-        if (!$attrCodes) { $result[$sidKey] = []; continue; }
-
-        $col = $this->productCollectionFactory->create();
-        $col->addAttributeToSelect($attrCodes);
-        $col->addFieldToFilter('attribute_set_id', $sid);
-        $col->addAttributeToFilter('type_id', 'simple');
-        $col->addAttributeToFilter('status', 1);
-        $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
-
-        $resource   = $col->getResource();
-        $connection = $resource->getConnection();
-
-        // Try MSI join first (if we discovered a stock table)
-        $didJoin = false;
-        if (!empty($stockJoinSql) && !empty($msiTableName ?? null)) {
-            try {
-                $col->getSelect()->joinInner(
-                    [$stockTableAlias => $resource->getTable($msiTableName)],
-                    $stockJoinSql,
-                    []
-                );
-                $didJoin = true;
-            } catch (\Throwable $e) {
-                $didJoin = false;
-            }
-        }
-
-        // Fallback: legacy stock status view (works even with MSI as it’s kept in sync)
-        if (!$didJoin) {
-            $css = $resource->getTable('cataloginventory_stock_status');
-            $col->getSelect()->joinInner(
-                ['css' => $css],
-                'css.product_id = e.entity_id AND css.stock_status = 1 AND css.website_id IN (0, ' . (int)$websiteId . ')',
-                []
-            );
-        }
-
-        // Collect used option IDs per attribute code (handles single & multiselect)
-        $used = [];
-        foreach ($attrCodes as $code) { $used[$code] = []; }
-
-        foreach ($col as $product) {
-            foreach ($attrCodes as $code) {
-                $val = $product->getData($code);
-                if ($val === null || $val === '' || $val === false) continue;
-
-                if (is_string($val) && strpos($val, ',') !== false) {
-                    foreach (explode(',', $val) as $p) {
-                        $p = trim($p);
-                        if ($p !== '' && $p !== '0') $used[$code][$p] = true;
-                    }
-                } elseif (is_array($val)) {
-                    foreach ($val as $p) {
-                        $p = (string)$p;
-                        if ($p !== '' && $p !== '0') $used[$code][$p] = true;
-                    }
-                } else {
-                    $p = (string)$val;
-                    if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+        try {
+            // MSI service is optional — resolve lazily
+            $om = \Magento\Framework\App\ObjectManager::getInstance();
+            if ($om->has(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class)) {
+                /** @var \Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface $stockResolver */
+                $stockResolver = $om->get(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class);
+                $stockId       = (int)$stockResolver->execute((string)$store->getWebsite()->getCode());
+                if ($stockId > 0) {
+                    $stockTableAlias = 'msi_stock';
+                    $stockJoinSql    = sprintf(
+                        '%1$s.sku = e.sku AND %1$s.is_salable = 1',
+                        $stockTableAlias
+                    );
+                    $msiTableName    = 'inventory_stock_' . $stockId;
                 }
             }
+        } catch (\Throwable $e) {
+            $stockTableAlias = null;
+            $stockJoinSql    = null;
+            $msiTableName    = null;
         }
 
-        // Map IDs ? labels (store-scoped), sort by label
-        $perSetOut = [];
-        foreach ($attrCodes as $code) {
-            $ids = array_keys($used[$code] ?? []);
-            if (!$ids) { $perSetOut[$code] = []; continue; }
+        $result = [];
 
-            $labelMap = [];
-            foreach ($this->getAttributeOptions($code) as $opt) {
-                $labelMap[(string)$opt['value']] = (string)$opt['label'];
+        foreach ($setIds as $sid) {
+            $sidKey    = (string)$sid;
+            $profile   = $profiles[$sidKey] ?? $profiles[$sid] ?? null;
+            $attrCodes = $this->extractProfileAttributeCodes($profile);
+            if (!$attrCodes) { $result[$sidKey] = []; continue; }
+
+            $col = $this->productCollectionFactory->create();
+            $col->addAttributeToSelect($attrCodes);
+            $col->addFieldToFilter('attribute_set_id', $sid);
+            $col->addAttributeToFilter('type_id', 'simple');
+            $col->addAttributeToFilter('status', 1);
+            $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
+
+            $resource   = $col->getResource();
+            $css        = $resource->getTable('cataloginventory_stock_status');
+
+            // Try MSI join first (if we discovered a stock table)
+            $didJoin = false;
+            if (!empty($stockJoinSql) && !empty($msiTableName)) {
+                try {
+                    $col->getSelect()->joinInner(
+                        [$stockTableAlias => $resource->getTable($msiTableName)],
+                        $stockJoinSql,
+                        []
+                    );
+                    $didJoin = true;
+                } catch (\Throwable $e) {
+                    $didJoin = false;
+                }
             }
 
-            $opts = [];
-            foreach ($ids as $id) {
-                $idStr = (string)$id;
-                $opts[] = ['value' => $idStr, 'label' => $labelMap[$idStr] ?? $idStr];
+            // Fallback: legacy stock status view (works even with MSI as it’s kept in sync)
+            if (!$didJoin) {
+                $col->getSelect()->joinInner(
+                    ['css' => $css],
+                    'css.product_id = e.entity_id AND css.stock_status = 1 AND css.website_id IN (0, ' . (int)$websiteId . ')',
+                    []
+                );
             }
 
-            usort($opts, static function ($a, $b) {
-                return strcasecmp($a['label'], $b['label']);
-            });
+            // Collect used option IDs per attribute code (handles single & multiselect)
+            $used = [];
+            foreach ($attrCodes as $code) { $used[$code] = []; }
 
-            $perSetOut[$code] = $opts;
+            foreach ($col as $product) {
+                foreach ($attrCodes as $code) {
+                    $val = $product->getData($code);
+                    if ($val === null || $val === '' || $val === false) continue;
+
+                    if (is_string($val) && strpos($val, ',') !== false) {
+                        foreach (explode(',', $val) as $p) {
+                            $p = trim($p);
+                            if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+                        }
+                    } elseif (is_array($val)) {
+                        foreach ($val as $p) {
+                            $p = (string)$p;
+                            if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+                        }
+                    } else {
+                        $p = (string)$val;
+                        if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+                    }
+                }
+            }
+
+            // Map IDs ? labels (store-scoped), sort by label
+            $perSetOut = [];
+            foreach ($attrCodes as $code) {
+                $ids = array_keys($used[$code] ?? []);
+                if (!$ids) { $perSetOut[$code] = []; continue; }
+
+                $labelMap = [];
+                foreach ($this->getAttributeOptions($code) as $opt) {
+                    $labelMap[(string)$opt['value']] = (string)$opt['label'];
+                }
+
+                $opts = [];
+                foreach ($ids as $id) {
+                    $idStr = (string)$id;
+                    $opts[] = ['value' => $idStr, 'label' => $labelMap[$idStr] ?? $idStr];
+                }
+
+                usort($opts, static function ($a, $b) {
+                    return strcasecmp($a['label'], $b['label']);
+                });
+
+                $perSetOut[$code] = $opts;
+            }
+
+            $result[$sidKey] = $perSetOut;
         }
 
-        $result[$sidKey] = $perSetOut;
+        return $result;
     }
 
-    return $result;
-}
     /**
      * Helper: extract all attribute codes referenced by a single profile.
      * @param array|null $profile

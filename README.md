@@ -14,6 +14,7 @@ We've added a caching layer which caches the per-attribute-set in-stock options 
 This release changes the way the finder works to make sure only attribute values from in-stock products are shown.
 
 
+
 # Inital Realease v1.3.0
 ## Features
 - Enable/disable module.

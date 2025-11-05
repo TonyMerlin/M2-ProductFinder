@@ -7,9 +7,9 @@ $action   = $block->getUrl('product-finder/index/results');
 $sets     = $block->getAllowedAttributeSets();      // [id => name]
 $profiles = $block->getAttributeSetProfiles();      // [setId => {...}]
 
-// Per-attribute-set in-stock options (preferred)
-$perSetOptions = method_exists($block, 'getInStockOptionsBySet')
-    ? $block->getInStockOptionsBySet(array_keys($sets), $profiles)
+// Per-attribute-set in-stock options (preferred) // v1.5.0 Use Cached Data
+$perSetOptions = method_exists($block, 'getInStockOptionsBySetCached')
+    ? $block->getInStockOptionsBySetCached(array_keys($sets), $profiles)
     : [];
 
 // Fallback: preload options by attribute code (used only if per-set is empty)
@@ -47,7 +47,7 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
 
         <!-- Step 1: Attribute Set -->
         <div class="merlin-field merlin-pf-step" data-field="attribute_set_id" data-step="1">
-            <label for="merlin-pf-attrset"><?= __('Product Group') ?></label>
+            <label for="merlin-pf-attrset"><?= __('Product Type') ?></label>
             <select id="merlin-pf-attrset" name="attribute_set_id" class="admin__control-select">
                 <option value=""><?= __('-- Select --') ?></option>
                 <?php foreach ($sets as $id => $name): ?>

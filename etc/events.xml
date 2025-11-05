@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+
+    <!-- Legacy stock + product save -->
+    <event name="catalog_product_save_commit_after">
+        <observer name="merlin_pf_clear_cache_on_product_save"
+                  instance="Merlin\ProductFinder\Observer\ClearFinderCache"/>
+    </event>
+    <event name="cataloginventory_stock_item_save_commit_after">
+        <observer name="merlin_pf_clear_cache_on_stock_item"
+                  instance="Merlin\ProductFinder\Observer\ClearFinderCache"/>
+    </event>
+
+    <!-- MSI (if enabled) -->
+    <event name="inventory_source_items_save_commit_after">
+        <observer name="merlin_pf_clear_cache_on_msi_source"
+                  instance="Merlin\ProductFinder\Observer\ClearFinderCache"/>
+    </event>
+</config>
