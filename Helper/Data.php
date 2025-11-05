@@ -36,4 +36,21 @@ class Data extends AbstractHelper
         $map = $json ? json_decode($json, true) : null;
         return is_array($map) ? $map : [];
     }
+
+    public function getAttributeSetProfiles(): array
+    {
+    
+    $raw = (string)$this->getConfig('general/attribute_set_profiles'); // adjust path to your section
+    if (!$raw) {
+        return [];
+    }
+    
+    try {
+        $data = json_decode($raw, true);
+        return is_array($data) ? $data : [];
+    } catch (\Throwable $e) {
+        return [];
+    }
+ }
+
 }
