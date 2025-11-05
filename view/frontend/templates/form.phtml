@@ -1,43 +1,29 @@
 <?php
 /** @var $block \Merlin\ProductFinder\Block\Form */
-$pre        = $block->getPreHtml();
-$post       = $block->getPostHtml();
-$action     = $block->getUrl('product-finder/index/results');
+$pre      = $block->getPreHtml();
+$post     = $block->getPostHtml();
+$action   = $block->getUrl('product-finder/index/results');
 
-$sets       = $block->getAllowedAttributeSets();   // [id => name]
-$profiles   = $block->getAttributeSetProfiles();   // [setId => ['label','sections','map','extras']]
+$sets     = $block->getAllowedAttributeSets();   // [id => name]
+$profiles = $block->getAttributeSetProfiles();   // [setId => ['label','sections','map','extras']]
 
-// OPTIONAL: preload options for all codes used in profiles
-$codes = [];
-foreach ($profiles as $sid => $prof) {
-    if (!empty($prof['map']) && is_array($prof['map'])) {
-        foreach ($prof['map'] as $code) { if ($code) $codes[$code] = true; }
-    }
-    if (!empty($prof['extras']) && is_array($prof['extras'])) {
-        foreach ($prof['extras'] as $code) { if ($code) $codes[$code] = true; }
-    }
-}
-$optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
+// JSON blobs for JS (safe embeds; no attribute escaping issues)
+$profilesJson      = json_encode($profiles, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$optionsBySetJson  = $block->getOptionsBySetFilteredByStockJson(); // shape: { "<setId>": { "<attr_code>": [ {value,label}, ... ] } }
 ?>
 <div class="merlin-finder">
     <?php if ($pre): ?>
         <div class="merlin-finder__pre"><?= /* @noEscape */ $pre ?></div>
     <?php endif; ?>
 
-    <!-- Embed JSON safely to avoid attribute-escaping issues -->
-    <script type="application/json" id="mpf-profiles-json"><?=
-        /* @noEscape */ json_encode($profiles, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
-    ?></script>
-    <script type="application/json" id="mpf-options-json"><?=
-        /* @noEscape */ json_encode($optionsByCode, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)
-    ?></script>
+    <!-- Provide data to JS via <script type="application/json"> -->
+    <script type="application/json" id="mpf-profiles-json"><?= /* @noEscape */ $profilesJson ?></script>
+    <script type="application/json" id="mpf-options-by-set"><?= /* @noEscape */ $optionsBySetJson ?></script>
 
     <form method="get"
           action="<?= $action ?>"
           id="merlin-finder-form"
-          class="merlin-grid merlin-pf-form"
-          data-profiles="<?= $block->escapeHtmlAttr(json_encode($profiles)) ?>"
-          data-options-by-code="<?= $block->escapeHtmlAttr(json_encode($optionsByCode)) ?>">
+          class="merlin-grid merlin-pf-form">
 
         <!-- Step 1: Attribute Set -->
         <div class="merlin-field merlin-pf-step" data-field="attribute_set_id" data-step="1">
@@ -50,6 +36,7 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
             </select>
         </div>
 
+        <!-- Dynamic fields injected here by JS based on selected set/profile -->
         <div id="merlin-pf-dynamic-fields"></div>
 
         <div class="merlin-actions merlin-pf-step" data-field="submit" data-step="999" style="display:none">
@@ -62,14 +49,6 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
         <div class="merlin-finder__post"><?= /* @noEscape */ $post ?></div>
     <?php endif; ?>
 </div>
-
-<?php
-// embed profiles + preloaded options so JS can read them without an AJAX hop
-$profilesJson = json_encode($block->getAttributeSetProfiles());
-$optionsJson  = json_encode($block->getPreloadedOptionsFromProfiles());
-?>
-<script type="application/json" id="mpf-profiles-json"><?= /* @noEscape */ $profilesJson ?></script>
-<script type="application/json" id="mpf-options-by-code"><?= /* @noEscape */ $optionsJson ?></script>
 
 <script type="text/x-magento-init">
 {
