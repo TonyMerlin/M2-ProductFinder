@@ -8,14 +8,8 @@ use Merlin\ProductFinder\Block\Form as BaseForm;
 
 class Finder extends BaseForm implements BlockInterface
 {
+    /** @var string */
     protected $_template = 'Merlin_ProductFinder::form.phtml';
-
-    protected function _construct()
-    {
-        parent::_construct();
-        // Disable caching so profiles/options reflect current config/scope
-        $this->setData('cache_lifetime', null);
-    }
 
     public function getTitle(): string
     {
@@ -25,10 +19,8 @@ class Finder extends BaseForm implements BlockInterface
     public function showPrePost(): bool
     {
         $v = $this->getData('show_pre_post');
-        if ($v === null || $v === '') {
-            return true;
-        }
-        return (bool)$v;
+        // default to true if not set
+        return $v === null || $v === '' ? true : (bool)$v;
     }
 
     public function getPreHtml(): string
@@ -39,5 +31,21 @@ class Finder extends BaseForm implements BlockInterface
     public function getPostHtml(): string
     {
         return $this->showPrePost() ? parent::getPostHtml() : '';
+    }
+
+    /**
+     * Optional override for sections order if provided in widget params.
+     * Falls back to config-defined sections in BaseForm (kept for legacy compat).
+     */
+    public function getSections(): array
+    {
+        $override = (string)($this->getData('sections_override') ?? '');
+        if ($override !== '') {
+            $arr = json_decode($override, true);
+            if (is_array($arr) && !empty($arr)) {
+                return $arr;
+            }
+        }
+        return parent::getSections();
     }
 }

@@ -11,12 +11,9 @@ define(['jquery'], function ($) {
         }
     }
 
-    // Build a select field safely (no HTML string concatenation for options)
+    // Build a select field safely (no string concat for options)
     function buildSelect(name, labelText, opts) {
-        var $wrap = $('<div/>', {
-            'class': 'merlin-field merlin-pf-step'
-        });
-
+        var $wrap = $('<div/>', { 'class': 'merlin-field merlin-pf-step' });
         var id = 'mpf-' + name + '-' + (Math.random().toString(36).slice(2));
 
         var $label = $('<label/>', { for: id }).text(labelText || name);
@@ -49,26 +46,20 @@ define(['jquery'], function ($) {
         var $dynamic   = $form.find('#merlin-pf-dynamic-fields');
         var $submitRow = $form.find('.merlin-pf-step[data-field="submit"]');
 
-        // Prefer safe JSON from <script type="application/json">, fallback to data-attrs
-        var profiles      = parseJsonFromScriptTag('mpf-profiles-json');
-        var optionsByCode = parseJsonFromScriptTag('mpf-options-json');
+        // Read JSON blobs
+        var profiles        = parseJsonFromScriptTag('mpf-profiles-json') || {};
+        var optionsBySetId  = parseJsonFromScriptTag('mpf-options-by-set') || {}; // preferred (in-stock)
+        var optionsByCode   = parseJsonFromScriptTag('mpf-options-json') || {};   // fallback (global)
 
-        if (!profiles) {
-            var profilesRaw = $form.attr('data-profiles') || '{}';
-            try { profiles = JSON.parse(profilesRaw || '{}') || {}; } catch (e) { profiles = {}; }
-        }
-        if (!optionsByCode) {
-            var optionsRaw  = $form.attr('data-options-by-code') || '{}';
-            try { optionsByCode = JSON.parse(optionsRaw || '{}') || {}; } catch (e) { optionsByCode = {}; }
-        }
+        // Normalise keys to strings
+        (function normalise() {
+            var normProfiles = {};
+            Object.keys(profiles || {}).forEach(function (k) { normProfiles[String(k)] = profiles[k] || {}; });
+            profiles = normProfiles;
 
-        // Normalise profile keys to strings
-        (function normaliseProfiles() {
-            var norm = {};
-            Object.keys(profiles || {}).forEach(function (k) {
-                norm[String(k)] = profiles[k] || {};
-            });
-            profiles = norm;
+            var normPerSet = {};
+            Object.keys(optionsBySetId || {}).forEach(function (k) { normPerSet[String(k)] = optionsBySetId[k] || {}; });
+            optionsBySetId = normPerSet;
         })();
 
         // Diagnostics
@@ -78,25 +69,38 @@ define(['jquery'], function ($) {
                 // eslint-disable-next-line no-console
                 console.log('[Merlin ProductFinder] Diagnostics:', {
                     profilesKeys: Object.keys(profiles || {}),
-                    optionsCodes: Object.keys(optionsByCode || {})
+                    perSetIds: Object.keys(optionsBySetId || {}),
+                    globalCodes: Object.keys(optionsByCode || {})
                 });
             }
             window.__mpfProfiles = profiles;
+            window.__mpfOptionsBySet = optionsBySetId;
             window.__mpfOptionsByCode = optionsByCode;
         })();
 
-        function clearDynamic() {
-            $dynamic.empty();
-        }
+        function clearDynamic() { $dynamic.empty(); }
 
-        function getOptionsForCode(code) {
-            code = String(code || '').trim();
+        // Prefer per-set in-stock options; fall back to global options when missing/empty
+        function getOptionsFor(setId, code) {
+            setId = String(setId || '').trim();
+            code  = String(code  || '').trim();
             if (!code) return [];
-            var list = optionsByCode[code];
-            return Array.isArray(list) ? list : [];
+
+            var perSet = (setId && optionsBySetId[setId]) ? optionsBySetId[setId][code] : null;
+            if (Array.isArray(perSet) && perSet.length) {
+                return perSet;
+            }
+            var global = optionsByCode[code];
+            return Array.isArray(global) ? global : [];
         }
 
-        function buildChainForProfile(profile) {
+        function humanizeLabel(key) {
+            return String(key || '')
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, function (m) { return m.toUpperCase(); });
+        }
+
+        function buildChainForProfile(setId, profile) {
             clearDynamic();
             $submitRow.hide();
 
@@ -113,12 +117,9 @@ define(['jquery'], function ($) {
 
             var created = [];
             sections.forEach(function (logical, idx) {
-                var mappedCode = map[logical] || logical;
-                var opts = getOptionsForCode(mappedCode);
-
-                var labelTxt = String(logical)
-                    .replace(/_/g, ' ')
-                    .replace(/\b\w/g, function (m) { return m.toUpperCase(); });
+                var mappedCode = map[logical] || logical; // allow logical===code
+                var opts       = getOptionsFor(setId, mappedCode);
+                var labelTxt   = humanizeLabel(logical);
 
                 var $row = buildSelect(logical, labelTxt, opts);
 
@@ -163,51 +164,48 @@ define(['jquery'], function ($) {
             $submitRow.hide();
             if (!setId) return;
 
-            // Direct / numeric key lookup
             var profile = profiles[setId] || profiles[parseInt(setId, 10)];
 
-            // Fallback: match by label text
+            // Fallback match by label text
             if (!profile) {
-                var chosenLabel = ($attrSet.find('option:selected').text() || '').trim().toLowerCase();
+                var chosenLabel = ($(this).find('option:selected').text() || '').trim().toLowerCase();
                 if (chosenLabel) {
                     Object.keys(profiles).some(function (k) {
                         var p = profiles[k] || {};
                         var lbl = (p.label || '').trim().toLowerCase();
-                        if (lbl && lbl === chosenLabel) {
-                            profile = p;
-                            return true;
-                        }
+                        if (lbl && lbl === chosenLabel) { profile = p; return true; }
                         return false;
                     });
                 }
             }
 
             if (!profile) {
-                var $note = $('<div class="merlin-field" style="margin:.5rem 0;color:#c00;"></div>')
-                    .text('No profile found for the selected set. Check your “Attribute Set Profiles (JSON)” or scope.');
-                $dynamic.append($note);
-
+                $dynamic.append(
+                    $('<div class="merlin-field" style="margin:.5rem 0;color:#c00;"></div>')
+                        .text('No profile found for the selected set. Check your “Attribute Set Profiles (JSON)” or scope.')
+                );
                 // eslint-disable-next-line no-console
                 console.warn('[Merlin ProductFinder] No profile for setId:',
                     setId,
                     'selectedLabel:',
-                    ($attrSet.find('option:selected').text() || '').trim(),
-                    'available keys:',
+                    ($(this).find('option:selected').text() || '').trim(),
+                    'available profile keys:',
                     Object.keys(profiles));
                 return;
             }
 
             profile.sections = Array.isArray(profile.sections) ? profile.sections : [];
-            profile.map = profile.map && typeof profile.map === 'object' ? profile.map : {};
+            profile.map      = profile.map && typeof profile.map === 'object' ? profile.map : {};
 
             if (!profile.sections.length) {
-                var $warn = $('<div class="merlin-field" style="margin:.5rem 0;color:#c00;"></div>')
-                    .text('Profile has no sections configured for this attribute set.');
-                $dynamic.append($warn);
+                $dynamic.append(
+                    $('<div class="merlin-field" style="margin:.5rem 0;color:#c00;"></div>')
+                        .text('Profile has no sections configured for this attribute set.')
+                );
                 return;
             }
 
-            buildChainForProfile(profile);
+            buildChainForProfile(setId, profile);
         });
 
         // Clear

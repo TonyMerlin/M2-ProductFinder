@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Merlin\ProductFinder\Block;
 
 use Magento\Catalog\Model\ResourceModel\Category\CollectionFactory as CategoryCollectionFactory;
+use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory as ProductCollectionFactory;
 use Magento\Eav\Api\AttributeRepositoryInterface;
 use Magento\Eav\Api\Data\AttributeOptionInterface;
 use Magento\Eav\Model\Config as EavConfig;
@@ -16,6 +17,7 @@ use Merlin\ProductFinder\Helper\Data;
 
 class Form extends Template
 {
+    /** @var string */
     protected $_template = 'Merlin_ProductFinder::form.phtml';
 
     private Data $helper;
@@ -25,6 +27,7 @@ class Form extends Template
     private AttributeSetCollectionFactory $attrSetCollectionFactory;
     private EntityTypeFactory $entityTypeFactory;
     private AttributeRepositoryInterface $attributeRepository;
+    private ProductCollectionFactory $productCollectionFactory;
 
     public function __construct(
         Template\Context $context,
@@ -35,6 +38,7 @@ class Form extends Template
         AttributeSetCollectionFactory $attrSetCollectionFactory,
         EntityTypeFactory $entityTypeFactory,
         AttributeRepositoryInterface $attributeRepository,
+        ProductCollectionFactory $productCollectionFactory,
         array $data = []
     ) {
         parent::__construct($context, $data);
@@ -45,18 +49,19 @@ class Form extends Template
         $this->attrSetCollectionFactory  = $attrSetCollectionFactory;
         $this->entityTypeFactory         = $entityTypeFactory;
         $this->attributeRepository       = $attributeRepository;
+        $this->productCollectionFactory  = $productCollectionFactory;
     }
 
     /* ==================== Basic passthroughs ==================== */
 
     public function getPreHtml(): string
     {
-        return (string) $this->helper->getConfig('layout/pre_html');
+        return (string)$this->helper->getConfig('layout/pre_html');
     }
 
     public function getPostHtml(): string
     {
-        return (string) $this->helper->getConfig('layout/post_html');
+        return (string)$this->helper->getConfig('layout/post_html');
     }
 
     public function getConfig($path)
@@ -65,38 +70,32 @@ class Form extends Template
     }
 
     /* ==================== Attribute sets from config ==================== */
+
     /**
-     * Reads allowed attribute sets from:
-     *   merlin_productfinder/general/allowed_attribute_sets
-     * Scope fallback STORE -> WEBSITE -> DEFAULT.
-     * Returns [attribute_set_id => attribute_set_name].
+     * Reads merlin_productfinder/general/allowed_attribute_sets (CSV).
+     * Scope fallback: STORE -> WEBSITE -> DEFAULT.
+     * @return array<int,string> [setId => name]
      */
     public function getAllowedAttributeSets(): array
     {
-        $csv = (string) $this->_scopeConfig->getValue(
+        $csv = (string)$this->_scopeConfig->getValue(
             'merlin_productfinder/general/allowed_attribute_sets',
             ScopeInterface::SCOPE_STORE
         );
         if ($csv === '') {
-            $csv = (string) $this->_scopeConfig->getValue(
+            $csv = (string)$this->_scopeConfig->getValue(
                 'merlin_productfinder/general/allowed_attribute_sets',
                 ScopeInterface::SCOPE_WEBSITE
             );
         }
         if ($csv === '') {
-            $csv = (string) $this->_scopeConfig->getValue(
+            $csv = (string)$this->_scopeConfig->getValue(
                 'merlin_productfinder/general/allowed_attribute_sets'
             );
         }
 
-        $ids = array_values(
-            array_filter(
-                array_map('intval', array_map('trim', explode(',', $csv)))
-            )
-        );
-
-        $entityType   = $this->entityTypeFactory->create()->loadByCode('catalog_product');
-        $entityTypeId = (int) $entityType->getId();
+        $ids = array_values(array_filter(array_map('intval', array_map('trim', explode(',', $csv)))));
+        $entityTypeId = (int)$this->entityTypeFactory->create()->loadByCode('catalog_product')->getId();
 
         $col = $this->attrSetCollectionFactory->create();
         $col->addFieldToFilter('entity_type_id', $entityTypeId);
@@ -107,74 +106,17 @@ class Form extends Template
 
         $out = [];
         foreach ($col as $set) {
-            $out[(int) $set->getAttributeSetId()] = (string) $set->getAttributeSetName();
+            $out[(int)$set->getAttributeSetId()] = (string)$set->getAttributeSetName();
         }
         return $out;
     }
 
-    /**
-     * Collect all mapped attribute codes from the per-attribute-set profiles
-     * (sections + extras) and preload their options for the current store.
-     *
-     * @return array<string, array<int, array{value:string,label:string}>>
-     */
-    public function getPreloadedOptionsFromProfiles(): array
-    {
-        $profiles = $this->getAttributeSetProfiles();
-        if (!$profiles || !is_array($profiles)) {
-            return [];
-        }
-
-        $codes = [];
-        foreach ($profiles as $profile) {
-            if (!is_array($profile)) {
-                continue;
-            }
-
-            // sections + map: logical -> attribute_code
-            $sections = isset($profile['sections']) && is_array($profile['sections'])
-                ? $profile['sections'] : [];
-
-            $map = isset($profile['map']) && is_array($profile['map'])
-                ? $profile['map'] : [];
-
-            foreach ($sections as $logical) {
-                $logical = (string)$logical;
-                if ($logical === '') {
-                    continue;
-                }
-                $mapped = $map[$logical] ?? $map[strtolower($logical)] ?? null;
-                if ($mapped) {
-                    $codes[] = (string)$mapped;
-                }
-            }
-
-            // extras: key -> attribute_code
-            $extras = isset($profile['extras']) && is_array($profile['extras'])
-                ? $profile['extras'] : [];
-
-            foreach ($extras as $attrCode) {
-                if ($attrCode) {
-                    $codes[] = (string)$attrCode;
-                }
-            }
-        }
-
-        $codes = array_values(array_unique(array_filter(array_map('trim', $codes))));
-        if (!$codes) {
-            return [];
-        }
-
-        return $this->preloadOptionsByCodes($codes);
-    }
-
     /* ==================== Per-attribute-set profiles JSON ==================== */
+
     /**
-     * Reads profiles JSON from:
-     *   merlin_productfinder/general/attribute_set_profiles
-     * Scope fallback STORE -> WEBSITE -> DEFAULT.
-     * Treats "" and "[]" as empty so we can inherit from broader scopes.
-     * Returns associative array keyed by attribute_set_id.
+     * Reads merlin_productfinder/general/attribute_set_profiles (JSON).
+     * Scope fallback: STORE -> WEBSITE -> DEFAULT. Treats "" and "[]" as empty.
+     * @return array<string,array>
      */
     public function getAttributeSetProfiles(): array
     {
@@ -183,15 +125,13 @@ class Form extends Template
         $isEmpty = static function (?string $raw): bool {
             if ($raw === null) return true;
             $raw = trim($raw);
-            if ($raw === '') return true;
-            if ($raw === '[]') return true;
-            return false;
+            return ($raw === '' || $raw === '[]');
         };
 
         $candidates = [
             $this->_scopeConfig->getValue($path, ScopeInterface::SCOPE_STORE),
             $this->_scopeConfig->getValue($path, ScopeInterface::SCOPE_WEBSITE),
-            $this->_scopeConfig->getValue($path), // default
+            $this->_scopeConfig->getValue($path),
         ];
 
         foreach ($candidates as $raw) {
@@ -212,18 +152,15 @@ class Form extends Template
     }
 
     /* ==================== Legacy top categories helper (optional) ==================== */
+
     public function getTopCategories(): array
     {
-        $idsCsv = (string) $this->helper->getConfig('general/top_categories');
+        $idsCsv = (string)$this->helper->getConfig('general/top_categories');
         if ($idsCsv === '') {
             return [];
         }
 
-        $ids = array_values(
-            array_filter(
-                array_map('intval', array_map('trim', explode(',', $idsCsv)))
-            )
-        );
+        $ids = array_values(array_filter(array_map('intval', array_map('trim', explode(',', $idsCsv)))));
         if (!$ids) {
             return [];
         }
@@ -235,18 +172,211 @@ class Form extends Template
         $out = [];
         foreach ($col as $cat) {
             $out[] = [
-                'id'   => (int) $cat->getId(),
-                'name' => (string) $cat->getName()
+                'id'   => (int)$cat->getId(),
+                'name' => (string)$cat->getName(),
             ];
         }
         return $out;
     }
 
-    /* ==================== Attribute options (robust + swatch-safe) ==================== */
+    /* ==================== In-stock option preloading (per set) ==================== */
+
     /**
-     * Returns store-scoped options for a product attribute code.
-     * Tries repository path, source model path, and swatch-safe option collection path.
-     * Output: [['value' => 'x', 'label' => 'Y'], ...]
+     * Build per-attribute-set option lists containing ONLY values that exist on
+     * in-stock, enabled, visible products in that set.
+     *
+     * Output:
+     * [
+     *   "<setId>" => [
+     *     "<attr_code>" => [ [value,label], ... ],
+     *     ...
+     *   ],
+     *   ...
+     * ]
+     *
+     * @param int[] $setIds
+     * @param array $profiles
+     * @return array<string, array<string, array<int, array{value:string,label:string}>>>
+     */
+public function getInStockOptionsBySet(array $setIds, array $profiles): array
+{
+    $setIds = array_values(array_unique(array_filter(array_map('intval', $setIds))));
+    if (!$setIds) return [];
+
+    $store     = $this->storeManager->getStore();
+    $websiteId = (int)$store->getWebsiteId();
+
+    // Figure out MSI stock id if available (safe fallback if MSI not installed)
+    $stockTableAlias = null;
+    $stockJoinSql    = null;
+
+    try {
+        // MSI service is optional — resolve lazily
+        $om = \Magento\Framework\App\ObjectManager::getInstance();
+        if ($om->has(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class)) {
+            /** @var \Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface $stockResolver */
+            $stockResolver = $om->get(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class);
+            $stockId       = (int)$stockResolver->execute((string)$store->getWebsite()->getCode());
+            if ($stockId > 0) {
+                $stockTableAlias = 'msi_stock';
+                $stockJoinSql    = sprintf(
+                    '%1$s.sku = e.sku AND %1$s.is_salable = 1',
+                    $stockTableAlias
+                );
+                // We'll turn this into a joinInner later using table name: inventory_stock_<stockId>
+                $msiTableName = 'inventory_stock_' . $stockId;
+            }
+        }
+    } catch (\Throwable $e) {
+        $stockTableAlias = null;
+        $stockJoinSql    = null;
+    }
+
+    $result = [];
+
+    foreach ($setIds as $sid) {
+        $sidKey    = (string)$sid;
+        $profile   = $profiles[$sidKey] ?? $profiles[$sid] ?? null;
+        $attrCodes = $this->extractProfileAttributeCodes($profile);
+        if (!$attrCodes) { $result[$sidKey] = []; continue; }
+
+        $col = $this->productCollectionFactory->create();
+        $col->addAttributeToSelect($attrCodes);
+        $col->addFieldToFilter('attribute_set_id', $sid);
+        $col->addAttributeToFilter('type_id', 'simple');
+        $col->addAttributeToFilter('status', 1);
+        $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
+
+        $resource   = $col->getResource();
+        $connection = $resource->getConnection();
+
+        // Try MSI join first (if we discovered a stock table)
+        $didJoin = false;
+        if (!empty($stockJoinSql) && !empty($msiTableName ?? null)) {
+            try {
+                $col->getSelect()->joinInner(
+                    [$stockTableAlias => $resource->getTable($msiTableName)],
+                    $stockJoinSql,
+                    []
+                );
+                $didJoin = true;
+            } catch (\Throwable $e) {
+                $didJoin = false;
+            }
+        }
+
+        // Fallback: legacy stock status view (works even with MSI as it’s kept in sync)
+        if (!$didJoin) {
+            $css = $resource->getTable('cataloginventory_stock_status');
+            $col->getSelect()->joinInner(
+                ['css' => $css],
+                'css.product_id = e.entity_id AND css.stock_status = 1 AND css.website_id IN (0, ' . (int)$websiteId . ')',
+                []
+            );
+        }
+
+        // Collect used option IDs per attribute code (handles single & multiselect)
+        $used = [];
+        foreach ($attrCodes as $code) { $used[$code] = []; }
+
+        foreach ($col as $product) {
+            foreach ($attrCodes as $code) {
+                $val = $product->getData($code);
+                if ($val === null || $val === '' || $val === false) continue;
+
+                if (is_string($val) && strpos($val, ',') !== false) {
+                    foreach (explode(',', $val) as $p) {
+                        $p = trim($p);
+                        if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+                    }
+                } elseif (is_array($val)) {
+                    foreach ($val as $p) {
+                        $p = (string)$p;
+                        if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+                    }
+                } else {
+                    $p = (string)$val;
+                    if ($p !== '' && $p !== '0') $used[$code][$p] = true;
+                }
+            }
+        }
+
+        // Map IDs ? labels (store-scoped), sort by label
+        $perSetOut = [];
+        foreach ($attrCodes as $code) {
+            $ids = array_keys($used[$code] ?? []);
+            if (!$ids) { $perSetOut[$code] = []; continue; }
+
+            $labelMap = [];
+            foreach ($this->getAttributeOptions($code) as $opt) {
+                $labelMap[(string)$opt['value']] = (string)$opt['label'];
+            }
+
+            $opts = [];
+            foreach ($ids as $id) {
+                $idStr = (string)$id;
+                $opts[] = ['value' => $idStr, 'label' => $labelMap[$idStr] ?? $idStr];
+            }
+
+            usort($opts, static function ($a, $b) {
+                return strcasecmp($a['label'], $b['label']);
+            });
+
+            $perSetOut[$code] = $opts;
+        }
+
+        $result[$sidKey] = $perSetOut;
+    }
+
+    return $result;
+}
+    /**
+     * Helper: extract all attribute codes referenced by a single profile.
+     * @param array|null $profile
+     * @return string[]
+     */
+    private function extractProfileAttributeCodes(?array $profile): array
+    {
+        if (!$profile || !is_array($profile)) {
+            return [];
+        }
+
+        $codes = [];
+
+        $sections = isset($profile['sections']) && is_array($profile['sections'])
+            ? $profile['sections'] : [];
+        $map = isset($profile['map']) && is_array($profile['map'])
+            ? $profile['map'] : [];
+
+        foreach ($sections as $logical) {
+            $logical = (string)$logical;
+            if ($logical === '') {
+                continue;
+            }
+            $mapped = $map[$logical] ?? $map[strtolower($logical)] ?? $logical;
+            if ($mapped) {
+                $codes[] = (string)$mapped;
+            }
+        }
+
+        $extras = isset($profile['extras']) && is_array($profile['extras'])
+            ? $profile['extras'] : [];
+
+        foreach ($extras as $attrCode) {
+            if ($attrCode) {
+                $codes[] = (string)$attrCode;
+            }
+        }
+
+        return array_values(array_unique(array_filter(array_map('trim', $codes))));
+    }
+
+    /* ==================== Attribute options (robust + swatch-safe) ==================== */
+
+    /**
+     * Returns store-scoped options for an attribute code.
+     * Tries repository, source model, then swatch option collection.
+     * @return array<int, array{value:string,label:string}>
      */
     public function getAttributeOptions(string $attrCode): array
     {
@@ -255,13 +385,13 @@ class Form extends Template
             return [];
         }
 
-        $storeId = (int) $this->storeManager->getStore()->getId();
+        $storeId = (int)$this->storeManager->getStore()->getId();
 
-        // Normalizer for both object-based and array-based rows.
         $normalize = static function ($options): array {
             $out = [];
             foreach ((array)$options as $opt) {
                 if (is_object($opt) && method_exists($opt, 'getValue')) {
+                    /** @var AttributeOptionInterface $opt */
                     $value = (string)$opt->getValue();
                     $label = (string)$opt->getLabel();
                 } else {
@@ -269,10 +399,10 @@ class Form extends Template
                     $label = isset($opt['label']) ? (string)$opt['label'] : '';
                 }
 
-                // Skip pure placeholders only
-                $isPlaceholder = ($value === '' || $value === null) ||
-                                 (trim($label) === '' && $value === '0') ||
-                                 (stripos($label, 'please select') !== false);
+                $isPlaceholder =
+                    ($value === '' || $value === null) ||
+                    (trim($label) === '' && $value === '0') ||
+                    (stripos($label, 'please select') !== false);
 
                 if (!$isPlaceholder) {
                     $out[] = ['value' => $value, 'label' => ($label !== '' ? $label : $value)];
@@ -281,22 +411,21 @@ class Form extends Template
             return $out;
         };
 
-        // 1) Repository path
+        // 1) repository
         try {
             $attribute = $this->attributeRepository->get('catalog_product', $attrCode);
             if (method_exists($attribute, 'setStoreId')) {
                 $attribute->setStoreId($storeId);
             }
-            $options = $attribute->getOptions();
-            $norm = $normalize($options ?? []);
+            $norm = $normalize($attribute->getOptions() ?? []);
             if (!empty($norm)) {
                 return $norm;
             }
         } catch (\Throwable $e) {
-            // continue
+            // fall through
         }
 
-        // 2) Source model path
+        // 2) source model
         try {
             $attribute = $this->eavConfig->getAttribute('catalog_product', $attrCode);
             if ($attribute && $attribute->getId()) {
@@ -306,17 +435,16 @@ class Form extends Template
                         (int)$this->eavConfig->getEntityType('catalog_product')->getEntityTypeId()
                     );
                 }
-                $options = $attribute->getSource()->getAllOptions(false);
-                $norm = $normalize($options ?? []);
+                $norm = $normalize($attribute->getSource()->getAllOptions(false) ?? []);
                 if (!empty($norm)) {
                     return $norm;
                 }
             }
         } catch (\Throwable $e) {
-            // continue
+            // fall through
         }
 
-        // 3) Swatch-safe fallback (direct option table query via collection)
+        // 3) swatch-safe fallback
         try {
             /** @var \Magento\Eav\Model\ResourceModel\Entity\Attribute\Option\CollectionFactory $optColFactory */
             $optColFactory = \Magento\Framework\App\ObjectManager::getInstance()
