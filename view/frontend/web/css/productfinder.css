@@ -1,7 +1,13 @@
+.merlin-finder {
+  .merlin-grid, .merlin-pf-form, .merlin-field, .merlin-price { box-sizing: border-box; }
+  .merlin-pf-step { margin-bottom: 12px; }
+  .merlin-actions { margin-top: 16px; }
+}
+
 /* 3-up grid for results */
 .merlin-grid-cards {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));  /* ✅ exactly 3 per row on desktop */
+    grid-template-columns: repeat(3, minmax(0, 1fr));  /* ? exactly 3 per row on desktop */
     gap: 16px;
     margin: 20px 0;
 }
