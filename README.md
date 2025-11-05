@@ -34,7 +34,8 @@ bin/magento cache:flush
 Admin: **Stores → Configuration → Catalog → Merlin Product Finder**
 
 
-- **General**: Enable, Show Layered Nav, Top Categories (multiselect).
+- **General**: Enable, Show Layered Nav, Attribute Sets (multiselect).
+- ** Json Wizard to create different profiles per attribute set
 - **Form Layout & Content**: Drag to reorder sections; set custom HTML above/below.
 - **Attribute Mapping**: Set attribute codes for product type, colour, extras (JSON map), and price settings.
 
