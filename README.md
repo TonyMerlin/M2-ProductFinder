@@ -1,6 +1,6 @@
 # Merlin_ProductFinder
 
-Drill-down product finder for Magento 2.4.5-p6. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
+Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
 #1.5.0
