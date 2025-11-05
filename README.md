@@ -3,8 +3,16 @@
 Drill-down product finder for Magento 2.4.5-p6. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
+#1.5.0
+
+
+We've added a caching layer which caches the per-attribute-set in-stock options for ~1 hour, and auto-invalidates when product/stock changes are saved.
+
 #v1.4.0
+
+
 This release changes the way the finder works to make sure only attribute values from in-stock products are shown.
+
 
 
 # Inital Realease v1.3.0
