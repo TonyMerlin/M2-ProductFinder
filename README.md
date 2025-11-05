@@ -5,9 +5,9 @@ Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute m
 
 ## Features
 - Enable/disable module.
-- Drag-and-drop section ordering (Category, Product Type, Colour, Price, Extras).
+- Drag-and-drop section ordering (Attribute Set, Product Type, Colour, Price, Extras).
 - Map frontend fields to product attributes via admin.
-- Configure top-level categories used as first step.
+- Configure usable attribute sets used as the first step.
 - Price slider with min/max/step.
 - Pre/Post custom HTML areas around the form.
 - Results page filtering product collection using selected attributes and price.
