@@ -110,7 +110,7 @@ class Form extends Template
         if (!empty($ids)) {
             $col->addFieldToFilter('attribute_set_id', ['in' => $ids]);
         }
-        $col->setOrder('sort_order', 'ASC');
+        $col->setOrder('attribute_set_name', 'ASC');
 
         $out = [];
         foreach ($col as $set) {
