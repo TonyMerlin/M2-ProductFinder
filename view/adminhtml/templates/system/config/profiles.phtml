@@ -1,18 +1,22 @@
 <?php
 /** @var $block \Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\Profiles */
-$attrSets  = $block->getProductAttributeSets();
-$current   = $block->getProfilesJson();
-$fieldId   = $block->getHtmlId();
+$attrSets = $block->getProductAttributeSets();   // [['id'=>..,'name'=>..], ...]
+$fieldId  = $block->getHtmlId();
+
+// Ensure alphabetical order by name (defensive, even if the collection was sorted)
+usort($attrSets, function ($a, $b) {
+    return strcasecmp($a['name'] ?? '', $b['name'] ?? '');
+});
 ?>
 <div class="merlin-pf-profiles"
      data-mpf-profiles
      data-field-id="<?= $block->escapeHtmlAttr($fieldId) ?>"
-     data-initial='<?= $block->escapeHtmlAttr($current) ?>'
      data-attrsets='<?= $block->escapeHtmlAttr(json_encode($attrSets)) ?>'>
 
-    <!-- IMPORTANT: render Magento's real field and just hide it -->
-    <div style="display:block">
-        <?= /* This is the real <textarea> with correct name & scope */ $block->getElement()->getElementHtml(); ?>
+    <!-- Render Magento's real field (this is the actual value that gets saved).
+         Keep it visible if you like seeing the JSON; otherwise set display:none. -->
+    <div style="display:none">
+        <?= /* real <textarea> with correct name/scope */ $block->getElement()->getElementHtml(); ?>
     </div>
 
     <div class="admin__field">
@@ -20,7 +24,7 @@ $fieldId   = $block->getHtmlId();
             <span><?= __('Attribute Set Profiles') ?></span>
         </label>
         <div class="admin__field-control">
-            <p><?= __('Select an attribute set, add sections/extras, then Save Config.') ?></p>
+            <p><?= __('Select an attribute set, add sections/extras, then click “Save to JSON Field”, and finally “Save Config”.') ?></p>
 
             <div class="merlin-pf-profiles__top">
                 <label><?= __('Attribute Set') ?></label>
