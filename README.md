@@ -7,6 +7,7 @@ Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute m
 
 
 Add: show special prices cleanly on the results page: original price struck-through, special price prominent, plus an optional “% off” badge.
+
 Fix: Make attribute sets show in alphabetical order on frontend dropdowns
 
 #v1.5.0
