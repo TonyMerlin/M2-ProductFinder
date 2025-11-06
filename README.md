@@ -19,6 +19,7 @@ We've added a caching layer which caches the per-attribute-set in-stock options 
 
 
 Fix: This release changes the way the finder works to make sure only attribute values from in-stock products are shown.
+
 Fix: Make each step open after previous step is complete
 
 
