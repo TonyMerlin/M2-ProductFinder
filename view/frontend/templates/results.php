@@ -25,7 +25,7 @@ $thumbH = 300;
     .merlin-card__price { display:flex; align-items:center; gap:.5rem; }
     .merlin-price--old { text-decoration: line-through; opacity:.7; }
     .merlin-price--special { font-weight:600; }
-    .merlin-price__badge { background:#e53935; color:#fff; border-radius:3px; padding:.1rem .35rem; font-size:.85rem; line-height:1; }
+    .merlin-price__badge { background:#e53935; color:#fff; border-radius:3px; padding:.1rem .35rem; font-size:2rem; line-height:1; }
 </style>
 
 <div class="merlin-results">
