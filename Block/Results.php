@@ -72,25 +72,50 @@ class Results extends Template
     }
 
     /**
-     * Is special price valid "now" for this product?
-     * Honors special_from_date / special_to_date window and ensures it's < base price.
+     * Return the product's *raw* special price (ignores from/to dates entirely).
+     * Returns null if not set or non-positive.
+     */
+    public function getRawSpecialPrice(Product $product): ?float
+    {
+        $sp = $product->getData('special_price');
+        if ($sp === null || $sp === '') {
+            return null;
+        }
+        $sp = (float)$sp;
+        return $sp > 0 ? $sp : null;
+    }
+
+    /**
+     * Treat product as "on sale" if special_price is set and lower than base price.
+     * (Ignores special_from_date / special_to_date by design.)
+     */
+    public function hasSpecialPrice(Product $product): bool
+    {
+        $regular = (float)$product->getPrice();
+        $special = $this->getRawSpecialPrice($product);
+        return ($special !== null) && $regular > 0 && $special < $regular;
+    }
+
+    /**
+     * Discount percentage (rounded down), ignoring date windows.
+     */
+    public function getDiscountPercent(Product $product): int
+    {
+        $regular = (float)$product->getPrice();
+        $special = $this->getRawSpecialPrice($product);
+        if ($regular <= 0 || $special === null || $special >= $regular) {
+            return 0;
+        }
+        return (int)floor((1 - ($special / $regular)) * 100);
+    }
+
+    /**
+     * Backwards-compat helper: previous code used "isSpecialActive" (date-aware).
+     * We now ignore dates but keep the method name to avoid breaking templates.
      */
     public function isSpecialActive(Product $p): bool
     {
-        $special = (float)$p->getData('special_price');
-        if ($special <= 0) {
-            return false;
-        }
-
-        $now  = $this->tz->date(); // store-aware "now"
-        $from = $p->getData('special_from_date') ? $this->tz->date($p->getData('special_from_date')) : null;
-        $to   = $p->getData('special_to_date') ? $this->tz->date($p->getData('special_to_date')) : null;
-
-        if ($from && $now < $from) return false;
-        if ($to && $now > $to)     return false;
-
-        $price = (float)$p->getData('price');
-        return $price > 0 && $special < $price;
+        return $this->hasSpecialPrice($p);
     }
 
     /**
@@ -102,11 +127,12 @@ class Results extends Template
      *   'special_html' => ?string,
      *   'percent_off'  => ?int
      * ]
+     * (Ignores special date windows.)
      */
     public function getDisplayPrices(Product $p): array
     {
         $price   = (float)$p->getData('price');
-        $special = $this->isSpecialActive($p) ? (float)$p->getData('special_price') : null;
+        $special = $this->hasSpecialPrice($p) ? (float)$this->getRawSpecialPrice($p) : null;
 
         $data = [
             'price_raw'    => $price,
@@ -117,7 +143,7 @@ class Results extends Template
         ];
 
         if ($special !== null && $price > 0) {
-            $data['percent_off'] = (int)round((1 - ($special / $price)) * 100);
+            $data['percent_off'] = (int)floor((1 - ($special / $price)) * 100);
         }
 
         return $data;

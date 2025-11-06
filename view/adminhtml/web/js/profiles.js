@@ -1,223 +1,231 @@
 define(['jquery', 'underscore'], function ($, _) {
     'use strict';
 
-    // Safe escape if underscore missing for any reason
-    var esc = (_ && _.escape) ? _.escape : function (s) {
-        return String(s)
+    // Safe HTML escape (for any inline text we inject)
+    function esc(s) {
+        s = String(s == null ? '' : s);
+        if (_ && _.escape) return _.escape(s);
+        return s
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
-    };
+    }
 
     return function (config, element) {
         var $root = $(element);
         if (!$root.length) return;
 
-        // prevent system config form submission from our buttons
+        // Stop button clicks from submitting the config form
         $root.on('click', '[data-mpf-new-profile],[data-mpf-add-section],[data-mpf-add-extra],[data-mpf-del],[data-mpf-save-json]', function (e) {
             e.preventDefault();
             e.stopPropagation();
         });
 
-        var fieldId        = $root.data('field-id');
-        var $textarea      = $('#' + fieldId); // REAL system.xml field (hidden)
-        var initialJson    = $root.data('initial') || '{}';
-        var rawAttrSets    = $root.data('attrsets') || [];
-        var $sectionsWrap  = $root.find('[data-mpf-sections]');
-        var $attrsetSelect = $root.find('[data-mpf-attrset]');
+        var fieldId   = $root.data('field-id');                // textarea id Magento uses to save the JSON
+        var $textarea = $('#' + fieldId);
 
-        // Keep track of the currently edited set id
-        var currentSetId = null;
-
-        // parse initial profiles JSON
+        // Always read the **live** textarea as the source of truth so we don't wipe other profiles
         var profiles = {};
-        try { profiles = JSON.parse(initialJson); } catch (e) { profiles = {}; }
-
-        // parse attribute sets list
-        var attrsets = Array.isArray(rawAttrSets) ? rawAttrSets : (function () {
-            try { return JSON.parse(rawAttrSets) || []; } catch (e) { return []; }
+        (function readFromTextarea() {
+            var raw = ($textarea.val() || '').trim();
+            if (!raw) { profiles = {}; return; }
+            try { profiles = JSON.parse(raw); }
+            catch (e) { profiles = {}; }
+            if (typeof profiles !== 'object' || profiles === null || Array.isArray(profiles)) profiles = {};
         })();
 
-        // ----- Utilities -----
-        function findAttrsetName(id) {
-            id = parseInt(id, 10);
-            for (var i = 0; i < attrsets.length; i++) {
-                if (parseInt(attrsets[i].id, 10) === id) return attrsets[i].name;
-            }
-            return 'Set ' + id;
+        // Attribute-set list passed from PHP (sorted there, but we guard anyway)
+        var rawAttrSets = $root.data('attrsets') || [];
+        var attrsets = Array.isArray(rawAttrSets) ? rawAttrSets.slice() : [];
+        attrsets.sort(function (a, b) {
+            return String(a && a.name || '').localeCompare(String(b && b.name || ''), undefined, {sensitivity: 'base'});
+        });
+
+        // Build a quick map for id -> name
+        var setNameById = {};
+        attrsets.forEach(function (s) {
+            setNameById[String(s.id)] = s.name;
+        });
+
+        // UI bits
+        var $sectionsWrap   = $root.find('[data-mpf-sections]');
+        var $attrsetSelect  = $root.find('[data-mpf-attrset]');
+        var currentSetId    = null;
+
+        function getSetName(setId) {
+            if (!setId) return '';
+            var idStr = String(setId);
+            // Prefer the preloaded list
+            if (setNameById[idStr]) return setNameById[idStr];
+
+            // Fallback to the currently selected option’s text (handles scope changes)
+            var $opt = $attrsetSelect.find('option[value="' + idStr.replace(/"/g, '\\"') + '"]');
+            var txt  = ($opt.text() || '').trim();
+            if (txt) return txt;
+
+            // Last resort fallback — but try to never use this
+            return 'Attribute Set ' + idStr;
         }
 
-        function sanitize(val) {
-            return (val == null) ? '' : String(val).trim();
-        }
-
-        function writeJsonToField() {
+        function writeJsonToTextarea() {
             try {
                 $textarea.val(JSON.stringify(profiles, null, 2)).trigger('change');
             } catch (e) {
+                // minimal
                 $textarea.val(JSON.stringify(profiles)).trigger('change');
             }
         }
 
-        // ----- Collect UI -> profiles[currentSetId] (MERGE, do not overwrite others) -----
+        // Collect the current UI rows into the in-memory profiles[setId]
         function collectIntoProfile(setId) {
             if (!setId) return;
 
             var profile = profiles[setId] || {
-                label: findAttrsetName(setId),
+                label: getSetName(setId),
                 sections: [],
                 map: {},
                 extras: {}
             };
 
             var newSections = [];
-            var newMap = {};
-            var newExtras = {};
+            var newMap      = {};
+            var newExtras   = {};
 
             $sectionsWrap.children('.merlin-pf-row').each(function () {
-                var $row = $(this);
-                var type = $row.data('row-type');
+                var $row  = $(this);
+                var rtype = $row.data('row-type');
 
-                if (type === 'section') {
-                    var logical = sanitize($row.find('[data-mpf-logical]').val());
-                    var mapped  = sanitize($row.find('[data-mpf-mapped]').val());
+                if (rtype === 'section') {
+                    var logical = String($row.find('[data-mpf-logical]').val() || '').trim();
+                    var mapped  = String($row.find('[data-mpf-mapped]').val() || '').trim();
+
                     if (logical) {
                         newSections.push(logical);
-                        if (mapped) {
-                            newMap[logical] = mapped;
-                        }
+                        if (mapped) newMap[logical] = mapped;
                     }
-                } else if (type === 'extra') {
-                    var key  = sanitize($row.find('[data-mpf-extra-key]').val());
-                    var attr = sanitize($row.find('[data-mpf-extra-mapped]').val());
-                    if (key && attr) {
-                        newExtras[key] = attr;
-                    }
+                } else if (rtype === 'extra') {
+                    var key  = String($row.find('[data-mpf-extra-key]').val() || '').trim();
+                    var code = String($row.find('[data-mpf-extra-mapped]').val() || '').trim();
+                    if (key && code) newExtras[key] = code;
                 }
             });
 
+            profile.label    = getSetName(setId); // ensure proper human label, never "Set 127"
             profile.sections = newSections;
             profile.map      = newMap;
             profile.extras   = newExtras;
 
-            profiles[setId] = profile; // MERGE into the big object
-        }
-
-        // ----- Renderers -----
-        function renderProfile(setId) {
-            $sectionsWrap.empty();
-            if (!setId) return;
-
-            var profile = profiles[setId] || {
-                label: findAttrsetName(setId),
-                sections: [],
-                map: {},
-                extras: {}
-            };
-
-            (profile.sections || []).forEach(function (logical) {
-                var mapped = (profile.map && profile.map[logical]) ? profile.map[logical] : '';
-                addSectionRow(logical, mapped);
-            });
-
-            var extras = profile.extras || {};
-            Object.keys(extras).forEach(function (extraKey) {
-                addExtraRow(extraKey, extras[extraKey]);
-            });
+            profiles[setId] = profile; // MERGE/UPSERT — never wipe the whole object
         }
 
         function addSectionRow(logical, mapped) {
-            logical = sanitize(logical);
-            mapped  = sanitize(mapped);
+            logical = String(logical || '');
+            mapped  = String(mapped  || '');
 
-            var html = '' +
-                '<div class="merlin-pf-row" data-row-type="section">' +
-                    '<div class="admin__field inline">' +
-                        '<label class="admin__field-label"><span>Logical</span></label>' +
-                        '<div class="admin__field-control">' +
-                            '<input type="text" class="admin__control-text" data-mpf-logical ' +
-                                   'placeholder="e.g. appliance_type" value="' + esc(logical) + '"/>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="admin__field inline">' +
-                        '<label class="admin__field-label"><span>Attribute Code</span></label>' +
-                        '<div class="admin__field-control">' +
-                            '<input type="text" class="admin__control-text" data-mpf-mapped ' +
-                                   'placeholder="e.g. refrigerator_type" value="' + esc(mapped) + '"/>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="admin__field inline">' +
-                        '<button type="button" class="action-delete" data-mpf-del>Delete</button>' +
-                    '</div>' +
-                '</div>';
+            var html = ''
+              + '<div class="merlin-pf-row" data-row-type="section" style="display:flex;gap:8px;align-items:flex-end;margin:6px 0;">'
+              + '  <div style="flex:1;">'
+              + '    <label style="display:block;margin-bottom:2px;">' + esc($.mage ? $.mage.__('Logical') : 'Logical') + '</label>'
+              + '    <input type="text" class="admin__control-text" data-mpf-logical value="' + esc(logical) + '"/>'
+              + '  </div>'
+              + '  <div style="flex:1;">'
+              + '    <label style="display:block;margin-bottom:2px;">' + esc($.mage ? $.mage.__('Attribute Code') : 'Attribute Code') + '</label>'
+              + '    <input type="text" class="admin__control-text" data-mpf-mapped value="' + esc(mapped) + '"/>'
+              + '  </div>'
+              + '  <div>'
+              + '    <button type="button" class="action-secondary" data-mpf-del>'
+              + '      <span>' + esc($.mage ? $.mage.__('Delete') : 'Delete') + '</span>'
+              + '    </button>'
+              + '  </div>'
+              + '</div>';
 
             $sectionsWrap.append(html);
         }
 
         function addExtraRow(key, mapped) {
-            key    = sanitize(key);
-            mapped = sanitize(mapped);
+            key    = String(key    || '');
+            mapped = String(mapped || '');
 
-            var html = '' +
-                '<div class="merlin-pf-row" data-row-type="extra">' +
-                    '<div class="admin__field inline">' +
-                        '<label class="admin__field-label"><span>Extra Key</span></label>' +
-                        '<div class="admin__field-control">' +
-                            '<input type="text" class="admin__control-text" data-mpf-extra-key ' +
-                                   'placeholder="e.g. energy_rating" value="' + esc(key) + '"/>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="admin__field inline">' +
-                        '<label class="admin__field-label"><span>Attribute Code</span></label>' +
-                        '<div class="admin__field-control">' +
-                            '<input type="text" class="admin__control-text" data-mpf-extra-mapped ' +
-                                   'placeholder="e.g. energy_rating" value="' + esc(mapped) + '"/>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="admin__field inline">' +
-                        '<button type="button" class="action-delete" data-mpf-del>Delete</button>' +
-                    '</div>' +
-                '</div>';
+            var html = ''
+              + '<div class="merlin-pf-row" data-row-type="extra" style="display:flex;gap:8px;align-items:flex-end;margin:6px 0;">'
+              + '  <div style="flex:1;">'
+              + '    <label style="display:block;margin-bottom:2px;">' + esc($.mage ? $.mage.__('Extra Key') : 'Extra Key') + '</label>'
+              + '    <input type="text" class="admin__control-text" data-mpf-extra-key value="' + esc(key) + '"/>'
+              + '  </div>'
+              + '  <div style="flex:1;">'
+              + '    <label style="display:block;margin-bottom:2px;">' + esc($.mage ? $.mage.__('Attribute Code') : 'Attribute Code') + '</label>'
+              + '    <input type="text" class="admin__control-text" data-mpf-extra-mapped value="' + esc(mapped) + '"/>'
+              + '  </div>'
+              + '  <div>'
+              + '    <button type="button" class="action-secondary" data-mpf-del>'
+              + '      <span>' + esc($.mage ? $.mage.__('Delete') : 'Delete') + '</span>'
+              + '    </button>'
+              + '  </div>'
+              + '</div>';
 
             $sectionsWrap.append(html);
         }
 
-        // ----- Events -----
+        function renderProfile(setId) {
+            $sectionsWrap.empty();
+            if (!setId) return;
 
-        // When switching sets: FIRST collect current, write to field, THEN render new
+            var profile = profiles[setId] || {
+                label: getSetName(setId),
+                sections: [],
+                map: {},
+                extras: {}
+            };
+
+            // sections
+            (profile.sections || []).forEach(function (logical) {
+                var mapped = (profile.map && profile.map[logical]) ? profile.map[logical] : '';
+                addSectionRow(logical, mapped);
+            });
+
+            // extras
+            var extras = profile.extras || {};
+            Object.keys(extras).forEach(function (k) {
+                addExtraRow(k, extras[k]);
+            });
+        }
+
+        // When changing the selected attribute set: save current edits -> switch
         $attrsetSelect.on('change', function () {
-            var newId = $(this).val();
+            var newId = String($(this).val() || '').trim();
 
-            // capture current edits before switching away
             if (currentSetId) {
+                // collect the current UI into the current profile and MERGE it
                 collectIntoProfile(currentSetId);
-                writeJsonToField();
+                writeJsonToTextarea();
             }
 
             currentSetId = newId || null;
             renderProfile(currentSetId);
         });
 
-        // New / Reset profile for current set (doesn't touch other profiles)
+        // Create/Reset a profile for the currently selected set (non-destructive to others)
         $root.on('click', '[data-mpf-new-profile]', function () {
-            var setId = $attrsetSelect.val();
-            if (!setId) { alert('Please select an attribute set first.'); return; }
+            var setId = String($attrsetSelect.val() || '').trim();
+            if (!setId) {
+                alert($.mage ? $.mage.__('Please select an attribute set first.') : 'Please select an attribute set first.');
+                return;
+            }
 
             profiles[setId] = {
-                label: findAttrsetName(setId),
+                label: getSetName(setId),
                 sections: [],
                 map: {},
                 extras: {}
             };
-
             currentSetId = setId;
             renderProfile(setId);
-            writeJsonToField(); // keep field in sync
+            writeJsonToTextarea();
         });
 
-        // Add rows
+        // Add section / extra row
         $root.on('click', '[data-mpf-add-section]', function () { addSectionRow('', ''); });
         $root.on('click', '[data-mpf-add-extra]', function () { addExtraRow('', ''); });
 
@@ -226,24 +234,27 @@ define(['jquery', 'underscore'], function ($, _) {
             $(this).closest('.merlin-pf-row').remove();
         });
 
-        // Save to JSON field = collect current and write (MERGE)
+        // Explicit "Save to JSON Field" — merges current UI into profiles and writes to textarea
         $root.on('click', '[data-mpf-save-json]', function () {
-            var setId = $attrsetSelect.val();
-            if (!setId) { alert('Please select an attribute set first.'); return; }
+            var setId = String($attrsetSelect.val() || '').trim();
+            if (!setId) {
+                alert($.mage ? $.mage.__('Please select an attribute set first.') : 'Please select an attribute set first.');
+                return;
+            }
             collectIntoProfile(setId);
-            writeJsonToField();
+            writeJsonToTextarea();
         });
 
-        // Also sync right before the Config form submits
+        // On form submit, persist the current working set as well
         var $configForm = $root.parents('form').first();
         $configForm.on('submit', function () {
             if (currentSetId) {
                 collectIntoProfile(currentSetId);
             } else {
-                var setId = $attrsetSelect.val();
+                var setId = String($attrsetSelect.val() || '').trim();
                 if (setId) collectIntoProfile(setId);
             }
-            writeJsonToField();
+            writeJsonToTextarea();
         });
     };
 });
