@@ -24,12 +24,13 @@ Fix: Make each step open after previous step is complete
 # Inital Realease v1.3.0
 ## Features
 - Enable/disable module.
-- Drag-and-drop section ordering (Category, Product Type, Colour, Price, Extras).
+- Drag-and-drop section ordering (Attribute Set, Product Type, Colour, Price, Extras).
 - Map frontend fields to product attributes via admin.
 - Configure attribute sets to be used as first step.
 - Pre/Post custom HTML areas around the form.
 - Results page filtering product collection using selected attributes and price.
 - Optional layered navigation on the left column of the results page.
+- Frontend form added simply via a widget which can be added on any page or block.
 
 ## Routes
 - Form: `/product-finder/`
