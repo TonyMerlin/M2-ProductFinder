@@ -13,6 +13,24 @@
             <tab>catalog</tab>
             <resource>Merlin_ProductFinder::config</resource>
 
+            <!-- ================== CACHE TOOLS ================== -->
+
+        <group id="tools" translate="label" sortOrder="90" showInDefault="1" showInWebsite="1" showInStore="1">
+         <label>Tools</label>
+
+           <field id="make_cache" translate="label" type="note" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Make Finder Cache</label>
+            <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Button\Build</frontend_model>
+            <comment>Builds per-attribute-set, in-stock-only option lists and stores them in cache for fast frontend loads.</comment>
+          </field>
+
+          <field id="clear_cache" translate="label" type="note" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+           <label>Clear Finder Cache</label>
+           <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Button\Clear</frontend_model>
+           <comment>Clears all cached Product Finder option lists.</comment>
+          </field>
+        </group>
+
             <!-- ================== GENERAL ================== -->
             <group id="general"
                    translate="label"
