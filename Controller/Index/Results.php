@@ -50,9 +50,16 @@ class Results extends Action
 
         // 2) base collection
         $collection = $this->collectionFactory->create();
-        $collection->addAttributeToSelect(['name', 'price', 'small_image']);
-        $collection->addAttributeToFilter('status', 1);
-        $collection->addAttributeToFilter('visibility', ['in' => [2, 3, 4]]);
+        $collection->addAttributeToSelect([
+            'name',
+            'price',
+            'special_price',
+            'special_from_date',
+            'special_to_date',
+            'small_image'
+        ]);
+$collection->addAttributeToFilter('status', 1);
+$collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
 
         // 3) If attribute set chosen, filter to it
         if ($attrSetId > 0) {
