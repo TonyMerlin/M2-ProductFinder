@@ -21,6 +21,13 @@ $imageRole   = 'category_page_grid';
 $thumbW = 300;
 $thumbH = 300;
 ?>
+<style>
+    .merlin-card__price { display:flex; align-items:center; gap:.5rem; }
+    .merlin-price--old { text-decoration: line-through; opacity:.7; }
+    .merlin-price--special { font-weight:600; }
+    .merlin-price__badge { background:#e53935; color:#fff; border-radius:3px; padding:.1rem .35rem; font-size:2rem; }
+</style>
+
 <div class="merlin-results">
     <div class="merlin-results__toolbar">
         <form method="get" action="<?= $block->escapeUrl($currentUrl) ?>" class="merlin-toolbar-form">
@@ -81,6 +88,9 @@ $thumbH = 300;
                 } catch (\Exception $e) {
                     $resizedUrl = '';
                 }
+
+                // Use new pricing helper
+                $prices = $block->getDisplayPrices($product);
                 ?>
                 <div class="merlin-card">
                     <a href="<?= $product->getProductUrl() ?>" class="merlin-card__image">
@@ -93,16 +103,22 @@ $thumbH = 300;
                             <span class="merlin-thumb"><?= $block->escapeHtml($product->getName()) ?></span>
                         <?php endif; ?>
                     </a>
-                    <div class="merlin-card__body">
+                    <div class="merlin-card__body" style="padding-left: 30px; padding-right: 30px;">
                         <a class="merlin-card__title" href="<?= $product->getProductUrl() ?>">
                             <?= $block->escapeHtml($product->getName()) ?>
                         </a>
+
                         <div class="merlin-card__price">
-                            <?php
-                            $price = $product->getFinalPrice() ?: $product->getPrice();
-                            echo $block->formatPrice($price);
-                            ?>
-                        </div>
+                    <?php if ($prices['special_raw'] !== null): ?>
+                        <span class="merlin-price--old"><?= /* @noEscape */ $prices['price_html'] ?></span>
+                        <span class="merlin-price--special"><?= /* @noEscape */ $prices['special_html'] ?></span>
+                    <?php if (!empty($prices['percent_off'])): ?>
+                        <span class="merlin-price__badge">-<?= (int)$prices['percent_off'] ?>%</span>
+                    <?php endif; ?>
+    <?php else: ?>
+        <span class="merlin-price--regular"><?= /* @noEscape */ $prices['price_html'] ?></span>
+    <?php endif; ?>
+</div>
                         <a class="action primary merlin-card__cta" href="<?= $product->getProductUrl() ?>">
                             <?= __('View') ?>
                         </a>

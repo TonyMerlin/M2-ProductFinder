@@ -3,7 +3,14 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
-#1.5.0
+#v1.5.1
+
+
+Add: show special prices cleanly on the results page: original price struck-through, special price prominent, plus an optional “% off” badge.
+
+Fix: Make attribute sets show in alphabetical order on frontend dropdowns
+
+#v1.5.0
 
 
 We've added a caching layer which caches the per-attribute-set in-stock options for ~1 hour, and auto-invalidates when product/stock changes are saved.
@@ -11,20 +18,21 @@ We've added a caching layer which caches the per-attribute-set in-stock options 
 #v1.4.0
 
 
-This release changes the way the finder works to make sure only attribute values from in-stock products are shown.
+Fix: This release changes the way the finder works to make sure only attribute values from in-stock products are shown.
 
+Fix: Make each step open after previous step is complete
 
 
 # Inital Realease v1.3.0
 ## Features
 - Enable/disable module.
-- Drag-and-drop section ordering (Category, Product Type, Colour, Price, Extras).
+- Drag-and-drop section ordering (Attribute Set, Product Type, Colour, Price, Extras).
 - Map frontend fields to product attributes via admin.
-- Configure top-level categories used as first step.
-- Price slider with min/max/step.
+- Configure attribute sets to be used as first step.
 - Pre/Post custom HTML areas around the form.
 - Results page filtering product collection using selected attributes and price.
 - Optional layered navigation on the left column of the results page.
+- Frontend form added simply via a widget which can be added on any page or block.
 
 ## Routes
 - Form: `/product-finder/`
