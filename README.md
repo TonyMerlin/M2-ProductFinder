@@ -3,13 +3,13 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
-#1.5.1
+#v1.5.1
 
 
 Add: show special prices cleanly on the results page: original price struck-through, special price prominent, plus an optional “% off” badge.
 
 
-#1.5.0
+#v1.5.0
 
 
 We've added a caching layer which caches the per-attribute-set in-stock options for ~1 hour, and auto-invalidates when product/stock changes are saved.
