@@ -3,7 +3,8 @@
 <acl>
     <resources>
         <resource id="Magento_Backend::admin">
-            <resource id="Merlin_ProductFinder::config" title="Merlin Product Finder Config" sortOrder="900"/>
+            <resource id="Merlin_ProductFinder::config" title="Merlin Product Finder Config" sortOrder="800"/>
+            <resource id="Merlin_ProductFinder::cache" title="Finder Cache" sortOrder="900"/>
         </resource>
     </resources>
 </acl>
