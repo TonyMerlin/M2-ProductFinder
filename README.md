@@ -2,6 +2,15 @@
 
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
+
+#v1.6.1
+
+
+Fix: added intersection filtering via AJAX for each subsequent dropdown. Seeding the first select from the preloaded per-set options and then fetch the next select’s options based on the user’s current selections, so we never present values that lead to zero salable products.
+
+
+Fix: buttons in wrong location
+
 #v1.6.0
 
 Add: Added create/flush finder cache function and buttons
