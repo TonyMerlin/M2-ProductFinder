@@ -1,0 +1,287 @@
+/* ========== Merlin Product Finder — Base ========== */
+:root {
+  --mpf-bg: #0c68af;
+  --mpf-surface: #f8f9fb;
+  --mpf-border: #e6e8ef;
+  --mpf-text: #1f2430;
+  --mpf-muted: #687086;
+  --mpf-primary: #2f6feb;           /* blue */
+  --mpf-primary-600: #275dd0;
+  --mpf-primary-100: #e9f0ff;
+  --mpf-success: #1a9b65;
+  --mpf-danger: #e53935;
+  --mpf-radius: 14px;
+  --mpf-shadow: 0 10px 30px rgba(16,24,40,.08);
+}
+
+/* container */
+.merlin-finder {
+  background: var(--mpf-bg);
+  border: 1px solid var(--mpf-border);
+  border-radius: var(--mpf-radius);
+  box-shadow: var(--mpf-shadow);
+  padding: clamp(16px, 3vw, 28px);
+  margin: clamp(12px, 2vw, 24px) 0;
+}
+
+/* optional pre / post content */
+.merlin-finder__pre,
+.merlin-finder__post {
+  color: var(--mpf-muted);
+  font-size: .95rem;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.merlin-grid.merlin-pf-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(12px, 2vw, 18px);
+}
+
+@media (max-width: 900px) {
+  .merlin-grid.merlin-pf-form { grid-template-columns: 1fr; }
+}
+
+/* fields */
+.merlin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--mpf-surface);
+  border: 1px solid var(--mpf-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.merlin-field:hover {
+  border-color: #d3d7e2;
+  box-shadow: 0 6px 16px rgba(16,24,40,.06);
+}
+
+.merlin-field label {
+  font-weight: 600;
+  color: var(--mpf-text);
+  font-size: .95rem;
+}
+
+.merlin-field select.admin__control-select {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--mpf-border);
+  background: #fff;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  color: var(--mpf-text);
+  transition: border-color .2s ease, box-shadow .2s ease;
+  outline: none;
+  -webkit-appearance: none; appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mpf-muted) 50%),
+    linear-gradient(135deg, var(--mpf-muted) 50%, transparent 50%),
+    linear-gradient(to right, #fff, #fff);
+  background-position: calc(100% - 22px) calc(1em + 2px),
+                       calc(100% - 16px) calc(1em + 2px),
+                       100% 0;
+  background-size: 6px 6px, 6px 6px, 2.5rem 100%;
+  background-repeat: no-repeat;
+}
+
+.merlin-field select.admin__control-select:focus {
+  border-color: var(--mpf-primary);
+  box-shadow: 0 0 0 4px var(--mpf-primary-100);
+}
+
+/* actions */
+.merlin-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.merlin-actions .action.primary {
+  background: var(--mpf-primary);
+  border: 1px solid var(--mpf-primary);
+  color: #fff;
+  font-weight: 600;
+  padding: 12px 18px;
+  border-radius: 12px;
+  transition: transform .05s ease, background .2s ease;
+}
+
+.merlin-actions .action.primary:hover {
+  background: var(--mpf-primary-600);
+}
+
+.merlin-actions .action.primary:active {
+  transform: translateY(1px);
+}
+
+.merlin-actions .action.secondary {
+  background: #fff;
+  border: 1px solid var(--mpf-border);
+  color: var(--mpf-text);
+  padding: 12px 18px;
+  border-radius: 12px;
+}
+
+/* helper/error notes injected by JS */
+.merlin-field[style*="color:#c00"] {
+  background: #fff5f5;
+  border-color: #ffd4d4;
+  color: #b42318 !important;
+}
+
+/* ========== Results grid/cards ========== */
+.merlin-grid-cards {
+  display: grid;
+  gap: clamp(14px, 2vw, 18px);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  margin-top: 8px;
+}
+
+.merlin-card {
+  border: 1px solid var(--mpf-border);
+  border-radius: var(--mpf-radius);
+  background: #fff;
+  box-shadow: var(--mpf-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform .08s ease, box-shadow .2s ease;
+}
+
+.merlin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(16,24,40,.12);
+}
+
+.merlin-card__image {
+  display: block;
+  aspect-ratio: 1 / 1;
+  background: #f3f5fa;
+  overflow: hidden;
+}
+
+.merlin-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.merlin-card__body {
+  padding: 14px 16px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.merlin-card__title {
+  color: var(--mpf-text);
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* clamp to 2 lines */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.merlin-card__title:hover { text-decoration: underline; }
+
+.merlin-card__price {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+
+.merlin-price--old      { text-decoration: line-through; opacity: .7; }
+.merlin-price--special  { font-weight: 700; }
+.merlin-price--regular  { font-weight: 600; }
+.merlin-price__badge    {
+  background: var(--mpf-danger);
+  color: #fff;
+  border-radius: 6px;
+  padding: .2rem .45rem;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.merlin-card__cta {
+  justify-self: start;
+  background: #fff;
+  border: 1px solid var(--mpf-border);
+  color: var(--mpf-text);
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.merlin-card__cta:hover {
+  border-color: var(--mpf-primary);
+  box-shadow: 0 0 0 4px var(--mpf-primary-100);
+}
+
+/* Toolbar */
+.merlin-results__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 8px;
+  border-bottom: 1px dashed var(--mpf-border);
+  margin-bottom: 12px;
+}
+
+.merlin-toolbar-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.merlin-toolbar-form label {
+  color: var(--mpf-muted);
+  font-size: .9rem;
+}
+.merlin-toolbar-form select {
+  border: 1px solid var(--mpf-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--mpf-text);
+}
+
+/* ========== Small screens tweaks ========== */
+@media (max-width: 480px) {
+  .merlin-card__body { padding: 12px; }
+  .merlin-card__price { gap: .35rem; }
+  .merlin-price__badge { font-size: .75rem; }
+  .merlin-toolbar-form select { font-size: .9rem; }
+}
+
+.merlin-field label::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: var(--mpf-primary);
+  border-radius: 50%;
+  font-weight: 700;
+  vertical-align: middle;
+}
