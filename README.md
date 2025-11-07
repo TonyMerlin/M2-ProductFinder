@@ -65,7 +65,7 @@ Fix: Make each step open after previous step is complete
    ```
 
 ## Configure
-Admin: **Stores â†’ Configuration â†’ Catalog â†’ Merlin Product Finder**
+Admin: ** Stores - Configuration - Catalog - Merlin Product Finder **
 
 - **General**: Enable, Show Layered Nav, Top Categories (multiselect).
 - **Form Layout & Content**: Drag to reorder sections; set custom HTML above/below.
