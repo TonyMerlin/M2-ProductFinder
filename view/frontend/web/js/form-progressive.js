@@ -119,20 +119,20 @@ define(['jquery'], function ($) {
 
             var created = [];
             sections.forEach(function (logical, idx) {
-                var mappedCode = map[logical] || logical; // allow logical===code
-                var labelTxt   = humanizeLabel(logical);
+            var mappedCode = map[logical] || logical;
+            var labelTxt   = humanizeLabel(logical);
 
-                // Seed only for first (or if you really want, seed all with per-set/global lists)
-                var seed = getSeedOptionsFor(setId, mappedCode);
-                var $row = buildSelect(logical, labelTxt, seed);
+            var seed = getSeedOptionsFor(setId, mappedCode);
+            var $row = buildSelect(logical, labelTxt, seed);
 
-                if (!seed.length && idx === 0) {
-                    // First select will still be usable; it can start empty if needed.
-                }
-                if (idx === 0) { $row.show(); } else { $row.hide(); }
+           // Add data-step attribute to the <label> inside each row
+            var $label = $row.find('label');
+            $label.attr('data-step', (idx + 1));
 
-                $dynamic.append($row);
-                created.push({ name: logical, code: mappedCode, row: $row });
+            if (idx === 0) { $row.show(); } else { $row.hide(); }
+
+            $dynamic.append($row);
+            created.push({ name: logical, code: mappedCode, row: $row });
             });
 
             // Progressive reveal with AJAX intersection filtering
