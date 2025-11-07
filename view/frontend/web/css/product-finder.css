@@ -27,11 +27,10 @@
 /* optional pre / post content */
 .merlin-finder__pre,
 .merlin-finder__post {
-  color: var(--mpf-muted);
+  color: #fff;
   font-size: .95rem;
   line-height: 1.6;
   margin-bottom: 12px;
-  color: #fff;
 }
 
 .merlin-grid.merlin-pf-form {
@@ -65,6 +64,23 @@
   font-weight: 600;
   color: var(--mpf-text);
   font-size: .95rem;
+}
+
+/* step badge before each label (JS sets data-step) */
+.merlin-field label::before {
+  content: attr(data-step);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: var(--mpf-primary);
+  border-radius: 50%;
+  font-weight: 700;
+  vertical-align: middle;
 }
 
 .merlin-field select.admin__control-select {
@@ -141,11 +157,36 @@
 }
 
 /* ========== Results grid/cards ========== */
-.merlin-grid-cards {
-  display: grid;
+/* Desktop default: 3 across */
+.merlin-grid-cards{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap: clamp(14px, 2vw, 18px);
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   margin-top: 8px;
+}
+
+/* Tablet (keep 3 across; change to 2 if preferred) */
+@media (max-width: 1024px){
+  .merlin-grid-cards{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+/* Phones (e.g. 390×844): 2 across */
+@media (max-width: 768px){
+  .merlin-grid-cards{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+  }
+  .merlin-card__body{ padding:12px; }
+  .merlin-price__badge{ font-size:.85rem; }
+}
+
+/* Very small phones: 1 across */
+@media (max-width: 360px){
+  .merlin-grid-cards{
+    grid-template-columns:1fr;
+  }
 }
 
 .merlin-card {
@@ -164,18 +205,20 @@
   box-shadow: 0 14px 32px rgba(16,24,40,.12);
 }
 
-.merlin-card__image {
-  display: block;
+.merlin-card__image{
+  display:block;
+  position:relative;
+  width:100%;
   aspect-ratio: 1 / 1;
-  background: #f3f5fa;
-  overflow: hidden;
+  overflow:hidden;
+  background:#fff;
 }
 
-.merlin-card__image img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+.merlin-card__image img{
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain;
+  display:block;
 }
 
 .merlin-card__body {
@@ -190,29 +233,30 @@
   line-height: 1.35;
   text-decoration: none;
   display: -webkit-box;
-  -webkit-line-clamp: 2; /* clamp to 2 lines */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .merlin-card__title:hover { text-decoration: underline; }
 
-.merlin-card__price {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  flex-wrap: wrap;
+.merlin-card__price{
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  flex-wrap:wrap;
+  line-height:1.2;
 }
 
 .merlin-price--old      { text-decoration: line-through; opacity: .7; }
 .merlin-price--special  { font-weight: 700; }
 .merlin-price--regular  { font-weight: 600; }
-.merlin-price__badge    {
+.merlin-price__badge{
   background: var(--mpf-danger);
   color: #fff;
   border-radius: 6px;
   padding: .2rem .45rem;
-  font-size: .8rem;
+  font-size: .9rem;
   font-weight: 700;
 }
 
@@ -268,20 +312,4 @@
   .merlin-card__price { gap: .35rem; }
   .merlin-price__badge { font-size: .75rem; }
   .merlin-toolbar-form select { font-size: .9rem; }
-}
-
-.merlin-field label::before {
-  content: attr(data-step);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin-right: 8px;
-  font-size: 0.75rem;
-  color: #fff;
-  background: var(--mpf-primary);
-  border-radius: 50%;
-  font-weight: 700;
-  vertical-align: middle;
 }

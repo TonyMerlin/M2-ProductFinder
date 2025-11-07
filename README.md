@@ -3,6 +3,12 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
+#v1.6.3
+
+
+Fix: Mobile view on the results page was cutting off the special price, changed to two product per row for mobiles.
+
+
 #v1.6.2 
 
 Update: Finder and Results with a clean, modern, and responsive UI.
