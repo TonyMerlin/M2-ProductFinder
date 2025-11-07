@@ -45,10 +45,11 @@ define(['jquery'], function ($) {
         var $attrSet   = $form.find('select[name="attribute_set_id"]');
         var $dynamic   = $form.find('#merlin-pf-dynamic-fields');
         var $submitRow = $form.find('.merlin-pf-step[data-field="submit"]');
+        var ajaxUrl    = String($form.data('ajax-url') || '').trim(); // product-finder/ajax/options
 
         // Read JSON blobs
         var profiles        = parseJsonFromScriptTag('mpf-profiles-json') || {};
-        var optionsBySetId  = parseJsonFromScriptTag('mpf-options-by-set') || {}; // preferred (in-stock)
+        var optionsBySetId  = parseJsonFromScriptTag('mpf-options-by-set') || {}; // preferred (in-stock per set)
         var optionsByCode   = parseJsonFromScriptTag('mpf-options-json') || {};   // fallback (global)
 
         // Normalise keys to strings
@@ -70,18 +71,19 @@ define(['jquery'], function ($) {
                 console.log('[Merlin ProductFinder] Diagnostics:', {
                     profilesKeys: Object.keys(profiles || {}),
                     perSetIds: Object.keys(optionsBySetId || {}),
-                    globalCodes: Object.keys(optionsByCode || {})
+                    globalCodes: Object.keys(optionsByCode || {}),
+                    ajaxUrl: ajaxUrl
                 });
             }
-            window.__mpfProfiles = profiles;
-            window.__mpfOptionsBySet = optionsBySetId;
-            window.__mpfOptionsByCode = optionsByCode;
+            window.__mpfProfiles       = profiles;
+            window.__mpfOptionsBySet   = optionsBySetId;
+            window.__mpfOptionsByCode  = optionsByCode;
         })();
 
         function clearDynamic() { $dynamic.empty(); }
 
         // Prefer per-set in-stock options; fall back to global options when missing/empty
-        function getOptionsFor(setId, code) {
+        function getSeedOptionsFor(setId, code) {
             setId = String(setId || '').trim();
             code  = String(code  || '').trim();
             if (!code) return [];
@@ -118,41 +120,97 @@ define(['jquery'], function ($) {
             var created = [];
             sections.forEach(function (logical, idx) {
                 var mappedCode = map[logical] || logical; // allow logical===code
-                var opts       = getOptionsFor(setId, mappedCode);
                 var labelTxt   = humanizeLabel(logical);
 
-                var $row = buildSelect(logical, labelTxt, opts);
+                // Seed only for first (or if you really want, seed all with per-set/global lists)
+                var seed = getSeedOptionsFor(setId, mappedCode);
+                var $row = buildSelect(logical, labelTxt, seed);
 
-                if (!opts.length) {
-                    var $sel = $row.find('select');
-                    $sel.empty()
-                        .append($('<option/>').val('').text(labelTxt + ' — No options'))
-                        .prop('disabled', true);
+                if (!seed.length && idx === 0) {
+                    // First select will still be usable; it can start empty if needed.
                 }
-
                 if (idx === 0) { $row.show(); } else { $row.hide(); }
 
                 $dynamic.append($row);
-                created.push({ name: logical, row: $row });
+                created.push({ name: logical, code: mappedCode, row: $row });
             });
 
-            // Progressive reveal
+            // Progressive reveal with AJAX intersection filtering
             created.forEach(function (item, i) {
                 var $current = item.row.find('select');
                 $current.on('change', function () {
+                    // Hide & reset downstream selects
                     for (var j = i + 1; j < created.length; j++) {
+                        var $selDown = created[j].row.find('select');
                         created[j].row.hide();
-                        created[j].row.find('select').val('');
+                        $selDown.val('');
+                        $selDown.find('option:not(:first)').remove();
+                        $selDown.prop('disabled', false);
                     }
                     $submitRow.hide();
 
-                    if ($current.val()) {
-                        if (i + 1 < created.length) {
-                            created[i + 1].row.show();
-                        } else {
-                            $submitRow.show();
-                        }
+                    var val = $current.val();
+                    if (!val) return;
+
+                    // Last field? Then show submit
+                    if (i === created.length - 1) {
+                        $submitRow.show();
+                        return;
                     }
+
+                    // Build filters from selected values up to i
+                    var filters = {};
+                    for (var k = 0; k <= i; k++) {
+                        var v = created[k].row.find('select').val();
+                        if (v) filters[created[k].code] = v;
+                    }
+
+                    var next = created[i + 1];
+
+                    // If no AJAX URL (shouldn't happen), just show row
+                    if (!ajaxUrl) {
+                        next.row.show();
+                        return;
+                    }
+
+                    // Fetch next options based on intersection of chosen filters
+                    $.ajax({
+                        url: ajaxUrl,
+                        method: 'GET',
+                        dataType: 'json',
+                        data: {
+                            set_id: setId,
+                            next_code: next.code,
+                            filters: filters
+                        }
+                    }).done(function (resp) {
+                        var $sel = next.row.find('select');
+                        $sel.find('option:not(:first)').remove();
+
+                        var opts = (resp && resp.ok && Array.isArray(resp.options)) ? resp.options : [];
+                        if (!opts.length) {
+                            $sel.append(
+                                $('<option/>')
+                                    .val('')
+                                    .text(humanizeLabel(next.name) + ' — No options in stock')
+                            ).prop('disabled', true);
+                        } else {
+                            opts.forEach(function (o) {
+                                $sel.append($('<option/>').val(String(o.value)).text(String(o.label)));
+                            });
+                            $sel.prop('disabled', false);
+                        }
+
+                        next.row.show();
+
+                        // Optional auto-advance if only one option:
+                        // if (opts.length === 1) { $sel.val(String(opts[0].value)).trigger('change'); }
+                    }).fail(function () {
+                        var $sel = next.row.find('select');
+                        $sel.find('option:not(:first)').remove();
+                        $sel.append($('<option/>').val('').text(humanizeLabel(next.name) + ' — unavailable')).prop('disabled', true);
+                        next.row.show();
+                    });
                 });
             });
         }
