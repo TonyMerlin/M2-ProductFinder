@@ -41,9 +41,10 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
     </script>
 
     <form method="get"
-          action="<?= $action ?>"
-          id="merlin-finder-form"
-          class="merlin-grid merlin-pf-form">
+      action="<?= $action ?>"
+      id="merlin-finder-form"
+      class="merlin-grid merlin-pf-form"
+      data-ajax-url="<?= $block->escapeUrl($block->getUrl('product-finder/ajax/options')) ?>">
 
         <!-- Step 1: Attribute Set -->
         <div class="merlin-field merlin-pf-step" data-field="attribute_set_id" data-step="1">
