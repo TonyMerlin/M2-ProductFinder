@@ -313,3 +313,53 @@
   .merlin-price__badge { font-size: .75rem; }
   .merlin-toolbar-form select { font-size: .9rem; }
 }
+
+/* --- Mobile fixes: prevent right-side clipping and keep grid at 2-up --- */
+.merlin-card, .merlin-card * { box-sizing: border-box; }
+
+.merlin-card__body,
+.merlin-card__price { min-width: 0; }  /* allow flex/grid to shrink without overflow */
+
+.merlin-card__price {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;      /* wrap long prices/badges onto the next line */
+  line-height: 1.2;
+}
+
+/* Make sure long prices/badges can wrap instead of pushing out of the card */
+.merlin-price--old,
+.merlin-price--special,
+.merlin-price--regular,
+.merlin-price__badge { white-space: normal; }
+
+@media (max-width: 768px){
+  /* enforce 2 columns on phones, reduce gaps slightly */
+  .merlin-grid-cards{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 0 8px;  /* tiny side padding to avoid edge clipping */
+  }
+
+  /* slightly tighter spacing inside the card on phones */
+  .merlin-card__body { padding: 12px; }
+
+  /* keep badge readable but compact */
+  .merlin-price__badge{ font-size: .85rem; padding: .15rem .4rem; }
+
+  /* ensure the CTA never gets clipped; it can wrap below the price if needed */
+  .merlin-card__cta {
+    max-width: 100%;
+    display: inline-block;
+    margin-top: 4px;
+  }
+}
+
+/* Very small phones: single column */
+@media (max-width: 360px){
+  .merlin-grid-cards{
+    grid-template-columns: 1fr;
+    padding: 0 8px;
+  }
+}
