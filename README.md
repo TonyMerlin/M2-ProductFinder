@@ -3,6 +3,12 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
+#v1.6.5
+
+
+Add: Add an image for each attribute set which will show on the frontend form when a set is selected.
+
+
 #v1.6.4
 
 
