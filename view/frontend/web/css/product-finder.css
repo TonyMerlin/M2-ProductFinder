@@ -90,7 +90,7 @@
   border: 1px solid var(--mpf-border);
   background: #fff;
   padding: 10px 12px;
-  font-size: 0.95rem;
+  font-size: 1.5rem;
   color: var(--mpf-text);
   transition: border-color .2s ease, box-shadow .2s ease;
   outline: none;
@@ -179,7 +179,7 @@
     gap:14px;
   }
   .merlin-card__body{ padding:12px; }
-  .merlin-price__badge{ font-size:.85rem; }
+  .merlin-price__badge{ font-size:1.5rem; }
 }
 
 /* Very small phones: 1 across */
@@ -362,4 +362,30 @@
     grid-template-columns: 1fr;
     padding: 0 8px;
   }
+}
+
+/* Attribute-set hero image block */
+.merlin-attrset-hero {
+  background: #fff;
+  border: 1px solid var(--mpf-border);
+  border-radius: 12px;
+  padding: 10px;
+  display: block;
+}
+
+.merlin-attrset-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 160px;         /* small, wide band */
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Keep it tidy on small screens */
+@media (max-width: 900px){
+  .merlin-attrset-hero img { max-height: 140px; }
+}
+@media (max-width: 480px){
+  .merlin-attrset-hero img { max-height: 120px; }
 }
