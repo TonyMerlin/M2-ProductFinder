@@ -38,6 +38,19 @@ define(['jquery'], function ($) {
         return $wrap;
     }
 
+    // Build media row (attribute-set image), hidden by default
+    function buildImageRow(imgUrl, altText) {
+        var $row = $('<div/>', { 'class': 'merlin-field merlin-pf-media', style: 'display:none' });
+        var $img = $('<img/>', {
+            src: String(imgUrl),
+            alt: String(altText || ''),
+            loading: 'lazy',
+            style: 'max-width:25%;height:auto;display:block;border-radius:10px;'
+        });
+        $row.append($img);
+        return $row;
+    }
+
     return function (config, element) {
         var $form = $(element);
         if (!$form.length) return;
@@ -108,6 +121,7 @@ define(['jquery'], function ($) {
 
             var sections = Array.isArray(profile.sections) ? profile.sections.slice() : [];
             var map      = (profile.map && typeof profile.map === 'object') ? profile.map : {};
+            var imageUrl = (profile.image || '').trim(); // <-- NEW
 
             if (!sections.length) {
                 $dynamic.append(
@@ -119,21 +133,29 @@ define(['jquery'], function ($) {
 
             var created = [];
             sections.forEach(function (logical, idx) {
-            var mappedCode = map[logical] || logical;
-            var labelTxt   = humanizeLabel(logical);
+                var mappedCode = map[logical] || logical;
+                var labelTxt   = humanizeLabel(logical);
 
-            var seed = getSeedOptionsFor(setId, mappedCode);
-            var $row = buildSelect(logical, labelTxt, seed);
+                var seed = getSeedOptionsFor(setId, mappedCode);
+                var $row = buildSelect(logical, labelTxt, seed);
 
-           // Add data-step attribute to the <label> inside each row
-            var $label = $row.find('label');
-            $label.attr('data-step', (idx + 1));
+                // Step badge
+                var $label = $row.find('label');
+                $label.attr('data-step', (idx + 1));
 
-            if (idx === 0) { $row.show(); } else { $row.hide(); }
+                if (idx === 0) { $row.show(); } else { $row.hide(); }
 
-            $dynamic.append($row);
-            created.push({ name: logical, code: mappedCode, row: $row });
+                $dynamic.append($row);
+                created.push({ name: logical, code: mappedCode, row: $row });
             });
+
+            // Insert image row AFTER the first field, hidden initially
+            var $mediaRow = null;
+            if (imageUrl && created.length > 0) {
+                $mediaRow = buildImageRow(imageUrl, profile.label || '');
+                // place between first and second fields
+                $mediaRow.insertAfter(created[0].row);
+            }
 
             // Progressive reveal with AJAX intersection filtering
             created.forEach(function (item, i) {
@@ -150,6 +172,16 @@ define(['jquery'], function ($) {
                     $submitRow.hide();
 
                     var val = $current.val();
+
+                    // Special handling for media visibility tied to first field
+                    if ($mediaRow && i === 0) {
+                        if (val) {
+                            $mediaRow.show();
+                        } else {
+                            $mediaRow.hide();
+                        }
+                    }
+
                     if (!val) return;
 
                     // Last field? Then show submit
@@ -167,7 +199,7 @@ define(['jquery'], function ($) {
 
                     var next = created[i + 1];
 
-                    // If no AJAX URL (shouldn't happen), just show row
+                    // If no AJAX URL (shouldn't happen), just show next row
                     if (!ajaxUrl) {
                         next.row.show();
                         return;
