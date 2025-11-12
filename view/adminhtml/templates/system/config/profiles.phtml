@@ -1,21 +1,22 @@
 <?php
 /** @var $block \Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\Profiles */
-$attrSets = $block->getProductAttributeSets();   // [['id'=>..,'name'=>..], ...]
+$attrSets = $block->getProductAttributeSets();
 $fieldId  = $block->getHtmlId();
 
-// Ensure alphabetical order by name (defensive, even if the collection was sorted)
+// Ensure alphabetical order (defensive)
 usort($attrSets, function ($a, $b) {
     return strcasecmp($a['name'] ?? '', $b['name'] ?? '');
 });
 ?>
+<!-- MPF profiles template loaded @ <?= date('Y-m-d H:i:s') ?> -->
 <div class="merlin-pf-profiles"
      data-mpf-profiles
      data-field-id="<?= $block->escapeHtmlAttr($fieldId) ?>"
+     data-upload-url="<?= $block->escapeUrl($block->getUrl('merlin_productfinder/upload/image')) ?>"
      data-attrsets='<?= $block->escapeHtmlAttr(json_encode($attrSets)) ?>'>
 
-    <!-- Render Magento's real field (this is the actual value that gets saved).
-         Keep it visible if you like seeing the JSON; otherwise set display:none. -->
-    <div style="display:none">
+    <!-- Real JSON textarea Magento saves -->
+    <div style="display:block">
         <?= /* real <textarea> with correct name/scope */ $block->getElement()->getElementHtml(); ?>
     </div>
 
@@ -24,9 +25,9 @@ usort($attrSets, function ($a, $b) {
             <span><?= __('Attribute Set Profiles') ?></span>
         </label>
         <div class="admin__field-control">
-            <p><?= __('Select an attribute set, add sections/extras, then click “Save to JSON Field”, and finally “Save Config”.') ?></p>
+            <p><?= __('Select an attribute set, add sections/extras/image, then click "Save to JSON Field", and finally "Save Config".') ?></p>
 
-            <div class="merlin-pf-profiles__top">
+            <div class="merlin-pf-profiles__top" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <label><?= __('Attribute Set') ?></label>
                 <select data-mpf-attrset>
                     <option value=""><?= __('-- choose --') ?></option>
@@ -37,11 +38,39 @@ usort($attrSets, function ($a, $b) {
                 <button type="button" class="action-default" data-mpf-new-profile>
                     <?= __('New / Reset Profile For This Set') ?>
                 </button>
+                <button type="button" class="action-default" data-mpf-add-image>
+                    <?= __('Add Image') ?>
+                </button>
+            </div>
+
+            <!-- Image row (JS will fill & toggle this) -->
+            <div class="merlin-pf-profiles__image" data-mpf-image-row style="margin:12px 0; display:none;">
+                <label class="admin__field-label" style="display:block;margin-bottom:6px;">
+                    <span><?= __('Profile Image (optional)') ?></span>
+                </label>
+
+                <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+                    <div>
+                        <img data-mpf-image-preview src="" alt="" style="max-width:220px;display:none;border:1px solid #e3e6ef;border-radius:8px;"/>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        <input type="file" data-mpf-image-input accept="image/*" />
+                        <button type="button" class="action-secondary" data-mpf-image-upload>
+                            <span><?= __('Upload') ?></span>
+                        </button>
+                        <button type="button" class="action-secondary" data-mpf-image-remove>
+                            <span><?= __('Remove') ?></span>
+                        </button>
+                        <!-- keep URL between set switches -->
+                        <input type="hidden" data-mpf-image-url value="" />
+                    </div>
+                </div>
+                <small class="note"><?= __('Shown between the first and second field on the frontend.') ?></small>
             </div>
 
             <div class="merlin-pf-profiles__body" data-mpf-sections></div>
 
-            <div class="merlin-pf-profiles__actions">
+            <div class="merlin-pf-profiles__actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
                 <button type="button" class="action-add" data-mpf-add-section>
                     <?= __('Add Section') ?>
                 </button>
