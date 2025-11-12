@@ -12,8 +12,11 @@ use Magento\Catalog\Model\Product;
 
 class Profiles extends Field
 {
-    protected AttributeSetCollectionFactory $setCollectionFactory;
-    protected EavConfig $eavConfig;
+    /** Use the template renderer instead of echoing HTML inline */
+    protected $_template = 'Merlin_ProductFinder::system/config/profiles.phtml';
+
+    private AttributeSetCollectionFactory $setCollectionFactory;
+    private EavConfig $eavConfig;
 
     public function __construct(
         Context $context,
@@ -23,80 +26,59 @@ class Profiles extends Field
     ) {
         parent::__construct($context, $data);
         $this->setCollectionFactory = $setCollectionFactory;
-        $this->eavConfig = $eavConfig;
+        $this->eavConfig            = $eavConfig;
     }
 
+    /** Magento calls this to render the field; delegate to the template */
     protected function _getElementHtml(AbstractElement $element)
     {
-        // Underlying textarea = actual config field (must remain in DOM)
-        $textareaHtml = parent::_getElementHtml($element);
-
-        // Current JSON (escaped); when empty at this scope, keep "{}"
-        $initialJson = (string)$element->getEscapedValue();
-        if ($initialJson === '') {
-            $initialJson = '{}';
-        }
-        $initialEsc = $this->escapeHtmlAttr($initialJson);
-
-        $fieldId = $element->getHtmlId();
-
-        // Build attribute-set <option>s server-side so the select is usable even if JS fails.
-        $optionsHtml = $this->renderAttributeSetOptions();
-
-        return <<<HTML
-<div class="merlin-pf-profiles"
-     data-field-id="{$fieldId}"
-     data-initial="{$initialEsc}">
-
-    <div class="admin__field field">
-        <div class="admin__field-control">
-
-            <div class="merlin-pf-toolbar" style="margin-bottom:8px;">
-                <button type="button" class="action-default" data-mpf-new-profile>New/Reset</button>
-                <button type="button" class="action-default" data-mpf-add-section>Add Section</button>
-                <button type="button" class="action-default" data-mpf-add-extra>Add Extra Attribute</button>
-                <button type="button" class="action-default" data-mpf-save-json>Save to JSON field</button>
-            </div>
-
-            <div class="merlin-pf-row" style="margin-bottom:8px;">
-                <label style="display:inline-block; width:160px;">Attribute Set</label>
-                <select data-mpf-attrset style="min-width:260px;">
-                    <option value="">-- Select Attribute Set --</option>
-                    {$optionsHtml}
-                </select>
-            </div>
-
-            <div data-mpf-sections></div>
-
-            <!-- Keep original textarea so scope inheritance & saving work -->
-            <div style="margin-top:10px;">{$textareaHtml}</div>
-        </div>
-    </div>
-</div>
-
-<script type="text/x-magento-init">
-{
-  ".merlin-pf-profiles": {
-    "Merlin_ProductFinder/js/profiles": {}
-  }
-}
-</script>
-HTML;
+        $this->setElement($element);
+        return $this->_toHtml();
     }
 
-    private function renderAttributeSetOptions(): string
+    /**
+     * Template helper: attribute sets (sorted A→Z)
+     * @return array<int, array{id:int,name:string}>
+     */
+    public function getProductAttributeSets(): array
     {
-        $entityTypeId = (int) $this->eavConfig->getEntityType(Product::ENTITY)->getEntityTypeId();
+        $entityTypeId = (int)$this->eavConfig->getEntityType(Product::ENTITY)->getEntityTypeId();
         $col = $this->setCollectionFactory->create();
         $col->setEntityTypeFilter($entityTypeId)
             ->setOrder('attribute_set_name', 'ASC');
 
-        $buf = [];
+        $out = [];
         foreach ($col as $set) {
-            $id   = (int)$set->getAttributeSetId();
-            $name = (string)$set->getAttributeSetName();
-            $buf[] = '<option value="' . $id . '">' . $this->escapeHtml($name) . '</option>';
+            $out[] = [
+                'id'   => (int)$set->getAttributeSetId(),
+                'name' => (string)$set->getAttributeSetName(),
+            ];
         }
-        return implode('', $buf);
+        return $out;
+    }
+
+    /** Pass the textarea’s HTML id (so JS reads/writes the real config value) */
+    public function getHtmlId(): string
+    {
+        return $this->getElement()->getHtmlId();
+    }
+
+    /** Convenience if you need the form field name in the template */
+    public function getName(): string
+    {
+        return $this->getElement()->getName();
+    }
+
+    /** (Optional) Current JSON value if you want to pre-fill anything */
+    public function getProfilesJson(): string
+    {
+        $val = (string)$this->getElement()->getData('value');
+        return $val !== '' ? $val : '{}';
+    }
+
+    /** URL for image AJAX upload used by profiles.js */
+    public function getImageUploadUrl(): string
+    {
+        return $this->getUrl('productfinder/profile_image/upload');
     }
 }
