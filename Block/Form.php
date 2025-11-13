@@ -555,6 +555,19 @@ class Form extends Template
         return [];
     }
 
+/** Price slider config from system config with safe defaults */
+public function getPriceSliderConfig(): array
+{
+    $min  = (float)($this->getConfig('mapping/price_min')  ?? 0);
+    $max  = (float)($this->getConfig('mapping/price_max')  ?? 10000);
+    $step = (float)($this->getConfig('mapping/price_step') ?? 10);
+
+    if ($max <= $min) { $max = $min + 1; }
+    if ($step <= 0)   { $step = 1; }
+
+    return ['min' => $min, 'max' => $max, 'step' => $step];
+}
+    
     /**
      * Preload multiple attribute codes at once.
      * @param string[] $codes
