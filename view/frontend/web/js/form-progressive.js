@@ -51,6 +51,61 @@ define(['jquery'], function ($) {
         return $row;
     }
 
+    // Simple currency
+    function formatMoney(n) {
+        n = Number(n || 0);
+        return '£' + n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    // Price slider (dual range)
+    function buildPriceRange(labelText, min, max, step) {
+        var $wrap = $('<div/>', { 'class': 'merlin-field merlin-pf-step mpf-price' });
+        var idMin = 'mpf-price-min-' + (Math.random().toString(36).slice(2));
+        var idMax = 'mpf-price-max-' + (Math.random().toString(36).slice(2));
+
+        var $header = $('<div class="mpf-price__header"></div>');
+        var $label  = $('<label/>').text(labelText || 'Price');
+        var $vals   = $('<div class="mpf-price__values"/>')
+                        .append('<span data-minv>'+ formatMoney(min) +'</span>')
+                        .append(' – ')
+                        .append('<span data-maxv>'+ formatMoney(max) +'</span>');
+        $header.append($label, $vals);
+
+        var $track   = $('<div class="mpf-price__track"><div class="mpf-price__progress"></div></div>');
+        var $ranges  = $('<div class="mpf-price__ranges"></div>');
+        var $rMin    = $('<input type="range" class="mpf-price__range">').attr({ id: idMin, min: min, max: max, step: step, value: min });
+        var $rMax    = $('<input type="range" class="mpf-price__range">').attr({ id: idMax, min: min, max: max, step: step, value: max });
+        var $hMin    = $('<input type="hidden" name="price_min">').val(min);
+        var $hMax    = $('<input type="hidden" name="price_max">').val(max);
+
+        $ranges.append($rMin, $rMax);
+        $wrap.append($header, $track, $ranges, $hMin, $hMax);
+
+        function updateProgress() {
+            var v1 = Math.min(Number($rMin.val()), Number($rMax.val()));
+            var v2 = Math.max(Number($rMin.val()), Number($rMax.val()));
+            var pct1 = ((v1 - min) / (max - min)) * 100;
+            var pct2 = ((v2 - min) / (max - min)) * 100;
+            $track.find('.mpf-price__progress').css({ left: pct1 + '%', right: (100 - pct2) + '%' });
+
+            $vals.find('[data-minv]').text(formatMoney(v1));
+            $vals.find('[data-maxv]').text(formatMoney(v2));
+            $hMin.val(Math.floor(v1));
+            $hMax.val(Math.ceil(v2));
+        }
+
+        $rMin.on('input change', updateProgress);
+        $rMax.on('input change', updateProgress);
+        updateProgress();
+
+        // API to read selected window
+        $wrap.data('mpf-get', function() {
+            return { price_min: Number($hMin.val()), price_max: Number($hMax.val()) };
+        });
+
+        return $wrap;
+    }
+
     return function (config, element) {
         var $form = $(element);
         if (!$form.length) return;
@@ -59,6 +114,11 @@ define(['jquery'], function ($) {
         var $dynamic   = $form.find('#merlin-pf-dynamic-fields');
         var $submitRow = $form.find('.merlin-pf-step[data-field="submit"]');
         var ajaxUrl    = String($form.data('ajax-url') || '').trim(); // product-finder/ajax/options
+
+        // Price slider config from data-* on the form
+        var priceMin  = parseFloat($form.data('price-min'))  || 0;
+        var priceMax  = parseFloat($form.data('price-max'))  || 10000;
+        var priceStep = parseFloat($form.data('price-step')) || 10;
 
         // Read JSON blobs
         var profiles        = parseJsonFromScriptTag('mpf-profiles-json') || {};
@@ -121,7 +181,7 @@ define(['jquery'], function ($) {
 
             var sections = Array.isArray(profile.sections) ? profile.sections.slice() : [];
             var map      = (profile.map && typeof profile.map === 'object') ? profile.map : {};
-            var imageUrl = (profile.image || '').trim(); // <-- NEW
+            var imageUrl = (profile.image || '').trim();
 
             if (!sections.length) {
                 $dynamic.append(
@@ -136,53 +196,69 @@ define(['jquery'], function ($) {
                 var mappedCode = map[logical] || logical;
                 var labelTxt   = humanizeLabel(logical);
 
-                var seed = getSeedOptionsFor(setId, mappedCode);
-                var $row = buildSelect(logical, labelTxt, seed);
+                var isPrice = ['price','price_range','price-range','amount','budget'].indexOf(String(logical).toLowerCase()) >= 0
+                           || ['price','price_range','price-range'].indexOf(String(mappedCode).toLowerCase()) >= 0;
+
+                var $row, seed;
+
+                if (isPrice) {
+                    $row = buildPriceRange(labelTxt, priceMin, priceMax, priceStep);
+                } else {
+                    seed = getSeedOptionsFor(setId, mappedCode);
+                    $row = buildSelect(logical, labelTxt, seed);
+
+                    if ((!seed || !seed.length) && idx !== 0) {
+                        var $sel = $row.find('select');
+                        $sel.empty()
+                            .append($('<option/>').val('').text(labelTxt + ' — No options'))
+                            .prop('disabled', true);
+                    }
+                }
 
                 // Step badge
-                var $label = $row.find('label');
-                $label.attr('data-step', (idx + 1));
+                $row.find('label').attr('data-step', (idx + 1));
 
                 if (idx === 0) { $row.show(); } else { $row.hide(); }
 
                 $dynamic.append($row);
-                created.push({ name: logical, code: mappedCode, row: $row });
+                created.push({ name: logical, code: mappedCode, row: $row, isPrice: isPrice });
             });
 
-            // Insert image row AFTER the first field, hidden initially
+            // Insert image row AFTER the first field, hidden initially; show when first field selected
             var $mediaRow = null;
             if (imageUrl && created.length > 0) {
                 $mediaRow = buildImageRow(imageUrl, profile.label || '');
-                // place between first and second fields
                 $mediaRow.insertAfter(created[0].row);
             }
 
-            // Progressive reveal with AJAX intersection filtering
+            // Progressive reveal with AJAX intersection filtering (+ price window support)
             created.forEach(function (item, i) {
-                var $current = item.row.find('select');
-                $current.on('change', function () {
+                var $current = item.isPrice ? item.row.find('input[type="range"]') : item.row.find('select');
+
+                // For price, update on both sliders; for select, on change
+                var eventName = item.isPrice ? 'input change' : 'change';
+                $current.on(eventName, function () {
                     // Hide & reset downstream selects
                     for (var j = i + 1; j < created.length; j++) {
                         var $selDown = created[j].row.find('select');
                         created[j].row.hide();
-                        $selDown.val('');
-                        $selDown.find('option:not(:first)').remove();
-                        $selDown.prop('disabled', false);
+                        if ($selDown.length) {
+                            $selDown.val('');
+                            $selDown.find('option:not(:first)').remove();
+                            $selDown.prop('disabled', false);
+                        }
                     }
                     $submitRow.hide();
 
-                    var val = $current.val();
-
-                    // Special handling for media visibility tied to first field
+                    // Special handling for the media row tied to first field selection
                     if ($mediaRow && i === 0) {
-                        if (val) {
-                            $mediaRow.show();
-                        } else {
-                            $mediaRow.hide();
-                        }
+                        var hasValue = item.isPrice
+                          ? true // price step always considered "chosen"
+                          : !!item.row.find('select').val();
+                        $mediaRow.toggle(!!hasValue);
                     }
 
-                    if (!val) return;
+                    if (!item.isPrice && !item.row.find('select').val()) return;
 
                     // Last field? Then show submit
                     if (i === created.length - 1) {
@@ -190,11 +266,20 @@ define(['jquery'], function ($) {
                         return;
                     }
 
-                    // Build filters from selected values up to i
+                    // Build filters up to i (include price window if present)
                     var filters = {};
                     for (var k = 0; k <= i; k++) {
-                        var v = created[k].row.find('select').val();
-                        if (v) filters[created[k].code] = v;
+                        var it = created[k];
+                        if (it.isPrice) {
+                            var priceVal = it.row.data('mpf-get') ? it.row.data('mpf-get')() : null;
+                            if (priceVal) {
+                                filters.price_min = priceVal.price_min;
+                                filters.price_max = priceVal.price_max;
+                            }
+                        } else {
+                            var v = it.row.find('select').val();
+                            if (v) filters[it.code] = v;
+                        }
                     }
 
                     var next = created[i + 1];
@@ -205,7 +290,13 @@ define(['jquery'], function ($) {
                         return;
                     }
 
-                    // Fetch next options based on intersection of chosen filters
+                    // For a price next step, there's nothing to fetch via AJAX
+                    if (next.isPrice) {
+                        next.row.show();
+                        return;
+                    }
+
+                    // Fetch next options based on intersection of chosen filters (+price)
                     $.ajax({
                         url: ajaxUrl,
                         method: 'GET',
@@ -222,9 +313,7 @@ define(['jquery'], function ($) {
                         var opts = (resp && resp.ok && Array.isArray(resp.options)) ? resp.options : [];
                         if (!opts.length) {
                             $sel.append(
-                                $('<option/>')
-                                    .val('')
-                                    .text(humanizeLabel(next.name) + ' — No options in stock')
+                                $('<option/>').val('').text(humanizeLabel(next.name) + ' — No options in stock')
                             ).prop('disabled', true);
                         } else {
                             opts.forEach(function (o) {
@@ -234,9 +323,6 @@ define(['jquery'], function ($) {
                         }
 
                         next.row.show();
-
-                        // Optional auto-advance if only one option:
-                        // if (opts.length === 1) { $sel.val(String(opts[0].value)).trigger('change'); }
                     }).fail(function () {
                         var $sel = next.row.find('select');
                         $sel.find('option:not(:first)').remove();
@@ -272,7 +358,7 @@ define(['jquery'], function ($) {
             if (!profile) {
                 $dynamic.append(
                     $('<div class="merlin-field" style="margin:.5rem 0;color:#c00;"></div>')
-                        .text('No profile found for the selected set. Check your “Attribute Set Profiles (JSON)” or scope.')
+                        .text('No profile found for the selected set. Check your "Attribute Set Profiles (JSON)" or scope.')
                 );
                 // eslint-disable-next-line no-console
                 console.warn('[Merlin ProductFinder] No profile for setId:',
