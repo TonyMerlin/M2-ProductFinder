@@ -38,19 +38,21 @@ class Options extends Action
 
     public function execute()
     {
-        $r = $this->getRequest();
+        $r   = $this->getRequest();
         $res = $this->resultJsonFactory->create();
 
         try {
             $setId   = (int)($r->getParam('set_id') ?? 0);
             $next    = trim((string)$r->getParam('next_code'));
-            $filters = $this->readFilters($r);
+
+            // Read filters (attribute selections) + price window
+            [$filters, $priceMin, $priceMax] = $this->readFilters($r);
 
             if ($setId <= 0 || $next === '') {
                 return $res->setData(['ok' => false, 'options' => []]);
             }
 
-            $options = $this->loadFilteredOptions($setId, $next, $filters);
+            $options = $this->loadFilteredOptions($setId, $next, $filters, $priceMin, $priceMax);
 
             return $res->setData([
                 'ok'      => true,
@@ -61,43 +63,68 @@ class Options extends Action
         }
     }
 
-    /** Read filters[] = { code: value } from request (GET is fine) */
+    /**
+     * Read filters from request:
+     *  - filters[code]=value for attributes already chosen
+     *  - filters[price_min], filters[price_max] (optional)
+     *
+     * @return array{0: array, 1: ?float, 2: ?float}
+     */
     private function readFilters(RequestInterface $r): array
     {
         $raw = $r->getParam('filters');
+        $out = [];
+        $min = null;
+        $max = null;
+
         if (is_array($raw)) {
-            $out = [];
             foreach ($raw as $k => $v) {
                 $k = trim((string)$k);
                 if ($k === '') continue;
-                // take first scalar value
+
+                if ($k === 'price_min') {
+                    // numeric only
+                    $min = is_array($v) ? (float)reset($v) : (float)$v;
+                    continue;
+                }
+                if ($k === 'price_max') {
+                    $max = is_array($v) ? (float)reset($v) : (float)$v;
+                    continue;
+                }
+
+                // attribute filters: take first scalar value
                 if (is_array($v)) { $v = reset($v); }
                 $out[$k] = trim((string)$v);
             }
-            return $out;
         }
-        return [];
+
+        return [$out, $min, $max];
     }
 
     /**
-     * Build a product collection scoped to set + stock + visibility + status + current filters,
+     * Build a product collection scoped to set + stock + visibility + status + filters (+ price),
      * then return the distinct option id list for $nextCode, mapped to labels.
      *
+     * @param int         $setId
+     * @param string      $nextCode
+     * @param array       $filters     // attribute => value
+     * @param float|null  $priceMin
+     * @param float|null  $priceMax
      * @return array<int,array{value:string,label:string}>
      */
-    private function loadFilteredOptions(int $setId, string $nextCode, array $filters): array
+    private function loadFilteredOptions(int $setId, string $nextCode, array $filters, ?float $priceMin, ?float $priceMax): array
     {
         $store     = $this->storeManager->getStore();
         $websiteId = (int)$store->getWebsiteId();
 
         $col = $this->productCollectionFactory->create();
-        $col->addAttributeToSelect(array_merge([$nextCode], array_keys($filters)));
+        $col->addAttributeToSelect(array_merge([$nextCode, 'price'], array_keys($filters)));
         $col->addFieldToFilter('attribute_set_id', $setId);
         $col->addAttributeToFilter('type_id', 'simple');
         $col->addAttributeToFilter('status', 1);
         $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
 
-        // legacy stock status (works with MSI too)
+        // STOCK (legacy view; works with MSI as well)
         $css = $col->getTable('cataloginventory_stock_status');
         $col->getSelect()->joinInner(
             ['css' => $css],
@@ -105,7 +132,43 @@ class Options extends Action
             []
         );
 
-        // Apply already chosen filters. Use (eq OR finset) to support select & multiselect.
+        // PRICE RANGE (prefer price index final_price; fallback to attribute price)
+        if ($priceMin !== null || $priceMax !== null) {
+            $pMin = ($priceMin !== null) ? max(0, (float)$priceMin) : null;
+            $pMax = ($priceMax !== null) ? max(0, (float)$priceMax) : null;
+
+            // Try index join for final price (customer_group_id = 0 as a safe default)
+            $pip = $col->getTable('catalog_product_index_price');
+            $alias = 'pip_idx';
+            try {
+                if (!in_array($alias, $col->getTableAliases(), true)) {
+                    $col->getSelect()->joinLeft(
+                        [$alias => $pip],
+                        $alias . '.entity_id = e.entity_id AND ' .
+                        $alias . '.website_id = ' . (int)$websiteId . ' AND ' .
+                        $alias . '.customer_group_id = 0',
+                        [] // no columns
+                    );
+                }
+                // WHERE final_price BETWEEN bounds (if provided)
+                if ($pMin !== null) {
+                    $col->getSelect()->where($alias . '.final_price >= ?', $pMin);
+                }
+                if ($pMax !== null) {
+                    $col->getSelect()->where($alias . '.final_price <= ?', $pMax);
+                }
+            } catch (\Throwable $e) {
+                // Fallback: filter by base price attribute
+                if ($pMin !== null) {
+                    $col->addAttributeToFilter('price', ['gteq' => $pMin]);
+                }
+                if ($pMax !== null) {
+                    $col->addAttributeToFilter('price', ['lteq' => $pMax]);
+                }
+            }
+        }
+
+        // ATTRIBUTE FILTERS (support select & multiselect: eq OR finset)
         foreach ($filters as $code => $value) {
             if ($value === '') continue;
             $col->addAttributeToFilter([
@@ -150,7 +213,7 @@ class Options extends Action
             $out[] = ['value' => $idStr, 'label' => $labelMap[$idStr] ?? $idStr];
         }
 
-        // nice UX: sort by label
+        // Sort by label for nicer UX
         usort($out, static function ($a, $b) {
             return strcasecmp($a['label'], $b['label']);
         });
@@ -172,7 +235,7 @@ class Options extends Action
             foreach ($rows as $opt) {
                 $v = (string)$opt->getValue();
                 $l = (string)$opt->getLabel();
-                if ($v === '' || $v === '0' && trim($l) === '') continue;
+                if ($v === '' || ($v === '0' && trim($l) === '')) continue;
                 $out[] = ['value' => $v, 'label' => ($l !== '' ? $l : $v)];
             }
             if ($out) return $out;
