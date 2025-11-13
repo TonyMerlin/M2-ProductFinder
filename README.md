@@ -3,6 +3,12 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
+v1.6.6
+
+
+Add: Re-introduce a compact, responsive Price slider that stays neatly inside our finder form and plays nicely with the progressive flow & in-stock filtering.
+
+
 #v1.6.5
 
 
