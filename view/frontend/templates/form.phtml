@@ -40,11 +40,15 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
         <?= /* @noEscape */ json_encode($optionsByCode, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>
     </script>
 
+<?php $priceCfg = $block->getPriceSliderConfig(); ?>
     <form method="get"
       action="<?= $action ?>"
       id="merlin-finder-form"
       class="merlin-grid merlin-pf-form"
-      data-ajax-url="<?= $block->escapeUrl($block->getUrl('product-finder/ajax/options')) ?>">
+      data-ajax-url="<?= $block->escapeUrl($block->getUrl('product-finder/ajax/options')) ?>"
+      data-price-min="<?= (float)$priceCfg['min'] ?>"
+      data-price-max="<?= (float)$priceCfg['max'] ?>"
+      data-price-step="<?= (float)$priceCfg['step'] ?>">
 
         <!-- Step 1: Attribute Set -->
         <div class="merlin-field merlin-pf-step" data-field="attribute_set_id" data-step="1">
