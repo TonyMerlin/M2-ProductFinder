@@ -53,6 +53,7 @@
   border-radius: 12px;
   padding: 12px 14px;
   transition: border-color .2s ease, box-shadow .2s ease;
+  margin-bottom: 10px;
 }
 
 .merlin-field:hover {
