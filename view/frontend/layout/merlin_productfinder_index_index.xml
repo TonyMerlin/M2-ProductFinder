@@ -5,7 +5,7 @@
             <block class="Merlin\ProductFinder\Block\Form" name="merlin.productfinder.form" template="Merlin_ProductFinder::form.phtml" />
         </referenceContainer>
         <referenceContainer name="head.additional">
-            <css src="Merlin_ProductFinder::css/productfinder.css"/>
+            <css src="Merlin_ProductFinder::css/product-finder.css"/>
         </referenceContainer>
     </body>
 </page>
