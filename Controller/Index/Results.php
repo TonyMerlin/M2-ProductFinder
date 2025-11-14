@@ -121,24 +121,22 @@ $collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
                 }
             }
 
-            // --- PRICE ---
-            if (in_array('price', $sections, true)) {
-                $min = $params['price_min'] ?? null;
-                $max = $params['price_max'] ?? null;
+            // --- PRICE --- (from slider, independent of sections)
+            $min = $params['price_min'] ?? null;
+            $max = $params['price_max'] ?? null;
 
-                if ($min !== null || $max !== null) {
-                    // use global price attr fallback
-                    $priceAttr = $this->helper->getConfig('mapping/price_attribute') ?: 'price';
-                    $cond = [];
-                    if ($min !== null && $min !== '') {
-                        $cond['from'] = (float)$min;
-                    }
-                    if ($max !== null && $max !== '') {
-                        $cond['to'] = (float)$max;
-                    }
-                    if (!empty($cond)) {
-                        $collection->addAttributeToFilter($priceAttr, $cond);
-                    }
+            if ($min !== null || $max !== null) {
+                // use global price attr fallback
+                $priceAttr = $this->helper->getConfig('mapping/price_attribute') ?: 'price';
+                $cond = [];
+                if ($min !== null && $min !== '') {
+                    $cond['from'] = (float)$min;
+                }
+                if ($max !== null && $max !== '') {
+                    $cond['to'] = (float)$max;
+                }
+                if (!empty($cond)) {
+                    $collection->addAttributeToFilter($priceAttr, $cond);
                 }
             }
         } else {

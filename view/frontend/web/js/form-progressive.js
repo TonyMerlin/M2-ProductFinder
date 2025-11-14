@@ -58,6 +58,57 @@ define(['jquery'], function ($) {
         var $attrSet   = $form.find('select[name="attribute_set_id"]');
         var $dynamic   = $form.find('#merlin-pf-dynamic-fields');
         var $submitRow = $form.find('.merlin-pf-step[data-field="submit"]');
+
+        // Price slider elements
+        var $priceBlock   = $form.find('#mpf-price-block');
+        var $priceMin     = $form.find('#mpf-price-min');
+        var $priceMax     = $form.find('#mpf-price-max');
+        var $priceMinLab  = $form.find('#mpf-price-min-label');
+        var $priceMaxLab  = $form.find('#mpf-price-max-label');
+        var $priceProg    = $form.find('#mpf-price-progress');
+
+        function formatCurrency(val) {
+            val = parseFloat(val || 0);
+            return 'Â£' + val.toFixed(0);
+        }
+
+        function syncPriceUI() {
+            var min = parseFloat($priceMin.val() || 0);
+            var max = parseFloat($priceMax.val() || 0);
+            var absMin = parseFloat($priceMin.attr('min') || 0);
+            var absMax = parseFloat($priceMin.attr('max') || 0);
+
+            // keep handles ordered
+            if (min > max) {
+                var tmp = min;
+                min = max;
+                max = tmp;
+                $priceMin.val(min);
+                $priceMax.val(max);
+            }
+
+            $priceMinLab.text(formatCurrency(min));
+            $priceMaxLab.text(formatCurrency(max));
+
+            var span = absMax - absMin;
+            if (span <= 0) {
+                $priceProg.css({left: '0%', right: '0%'});
+            } else {
+                var left  = ((min - absMin) / span) * 100;
+                var right = 100 - ((max - absMin) / span) * 100;
+                $priceProg.css({left: left + '%', right: right + '%'});
+            }
+        }
+
+        if ($priceBlock.length) {
+            // initialise labels/progress
+            syncPriceUI();
+            $priceBlock.hide();
+
+            $priceMin.on('input change', syncPriceUI);
+            $priceMax.on('input change', syncPriceUI);
+        }
+
         var ajaxUrl    = String($form.data('ajax-url') || '').trim(); // product-finder/ajax/options
 
         // Read JSON blobs
@@ -224,7 +275,7 @@ define(['jquery'], function ($) {
                             $sel.append(
                                 $('<option/>')
                                     .val('')
-                                    .text(humanizeLabel(next.name) + ' — No options in stock')
+                                    .text(humanizeLabel(next.name) + ' â€” No options in stock')
                             ).prop('disabled', true);
                         } else {
                             opts.forEach(function (o) {
@@ -240,7 +291,7 @@ define(['jquery'], function ($) {
                     }).fail(function () {
                         var $sel = next.row.find('select');
                         $sel.find('option:not(:first)').remove();
-                        $sel.append($('<option/>').val('').text(humanizeLabel(next.name) + ' — unavailable')).prop('disabled', true);
+                        $sel.append($('<option/>').val('').text(humanizeLabel(next.name) + ' â€” unavailable')).prop('disabled', true);
                         next.row.show();
                     });
                 });
@@ -252,6 +303,17 @@ define(['jquery'], function ($) {
             var setId = String($(this).val() || '').trim();
             clearDynamic();
             $submitRow.hide();
+
+            // Show price slider when an attribute set is chosen
+            if ($priceBlock && $priceBlock.length) {
+                if (setId) {
+                    $priceBlock.show();
+                    syncPriceUI();
+                } else {
+                    $priceBlock.hide();
+                }
+            }
+
             if (!setId) return;
 
             var profile = profiles[setId] || profiles[parseInt(setId, 10)];
@@ -272,7 +334,7 @@ define(['jquery'], function ($) {
             if (!profile) {
                 $dynamic.append(
                     $('<div class="merlin-field" style="margin:.5rem 0;color:#c00;"></div>')
-                        .text('No profile found for the selected set. Check your “Attribute Set Profiles (JSON)” or scope.')
+                        .text('No profile found for the selected set. Check your â€œAttribute Set Profiles (JSON)â€ or scope.')
                 );
                 // eslint-disable-next-line no-console
                 console.warn('[Merlin ProductFinder] No profile for setId:',
@@ -304,6 +366,15 @@ define(['jquery'], function ($) {
             $form[0].reset();
             clearDynamic();
             $submitRow.hide();
+
+            if ($priceBlock && $priceBlock.length) {
+                $priceBlock.hide();
+                if ($priceMin.length && $priceMax.length) {
+                    $priceMin.val($priceMin.attr('min') || 0);
+                    $priceMax.val($priceMax.attr('max') || 0);
+                    syncPriceUI();
+                }
+            }
         });
     };
 });
