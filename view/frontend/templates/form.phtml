@@ -40,15 +40,11 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
         <?= /* @noEscape */ json_encode($optionsByCode, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>
     </script>
 
-<?php $priceCfg = $block->getPriceSliderConfig(); ?>
     <form method="get"
       action="<?= $action ?>"
       id="merlin-finder-form"
       class="merlin-grid merlin-pf-form"
-      data-ajax-url="<?= $block->escapeUrl($block->getUrl('product-finder/ajax/options')) ?>"
-      data-price-min="<?= (float)$priceCfg['min'] ?>"
-      data-price-max="<?= (float)$priceCfg['max'] ?>"
-      data-price-step="<?= (float)$priceCfg['step'] ?>">
+      data-ajax-url="<?= $block->escapeUrl($block->getUrl('product-finder/ajax/options')) ?>">
 
         <!-- Step 1: Attribute Set -->
         <div class="merlin-field merlin-pf-step" data-field="attribute_set_id" data-step="1">
@@ -63,6 +59,39 @@ $optionsByCode = $block->preloadOptionsByCodes(array_keys($codes));
 
         <!-- Progressive fields injected here -->
         <div id="merlin-pf-dynamic-fields"></div>
+
+        <!-- Price slider (optional) -->
+        <div class="merlin-field mpf-price merlin-pf-step" data-field="price" data-step="900" id="mpf-price-block" style="display:none">
+            <div class="mpf-price__header">
+                <span><?= __('Price Range') ?></span>
+                <span class="mpf-price__values">
+                    <span id="mpf-price-min-label"></span>
+                    &nbsp;â€“&nbsp;
+                    <span id="mpf-price-max-label"></span>
+                </span>
+            </div>
+            <div class="mpf-price__track">
+                <div class="mpf-price__progress" id="mpf-price-progress"></div>
+            </div>
+            <div class="mpf-price__ranges">
+                <input type="range"
+                       class="mpf-price__range"
+                       id="mpf-price-min"
+                       name="price_min"
+                       min="0"
+                       max="6000"
+                       step="50"
+                       value="0">
+                <input type="range"
+                       class="mpf-price__range"
+                       id="mpf-price-max"
+                       name="price_max"
+                       min="0"
+                       max="6000"
+                       step="50"
+                       value="6000">
+            </div>
+        </div>
 
         <div class="merlin-actions merlin-pf-step" data-field="submit" data-step="999" style="display:none">
             <button type="submit" class="action primary"><span><?= __('Find Products') ?></span></button>
