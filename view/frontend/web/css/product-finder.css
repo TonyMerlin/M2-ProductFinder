@@ -1,4 +1,4 @@
-/* ========== Merlin Product Finder — Base ========== */
+/* ========== Merlin Product Finder â€” Base ========== */
 :root {
   --mpf-bg: #0c68af;
   --mpf-surface: #f8f9fb;
@@ -53,7 +53,6 @@
   border-radius: 12px;
   padding: 12px 14px;
   transition: border-color .2s ease, box-shadow .2s ease;
-  margin-bottom: 10px;
 }
 
 .merlin-field:hover {
@@ -173,7 +172,7 @@
   }
 }
 
-/* Phones (e.g. 390×844): 2 across */
+/* Phones (e.g. 390Ã—844): 2 across */
 @media (max-width: 768px){
   .merlin-grid-cards{
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -390,82 +389,3 @@
 @media (max-width: 480px){
   .merlin-attrset-hero img { max-height: 120px; }
 }
-
-/* === Price slider === */
-.mpf-price {
-  background: var(--mpf-surface);
-  border: 1px solid var(--mpf-border);
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
-.mpf-price__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.mpf-price__values {
-  font-weight: 600;
-  color: var(--mpf-text);
-  font-size: .95rem;
-}
-
-.mpf-price__track {
-  position: relative;
-  height: 6px;
-  background: #e6e8ef;
-  border-radius: 999px;
-  margin: 10px 4px 18px;
-}
-
-.mpf-price__progress {
-  position: absolute;
-  height: 100%;
-  background: var(--mpf-primary);
-  border-radius: 999px;
-  left: 0; right: 0;
-}
-
-.mpf-price__ranges {
-  position: relative;
-  height: 0; /* sliders float above */
-}
-
-.mpf-price__range {
-  position: absolute;
-  left: 0; right: 0;
-  width: 100%;
-  pointer-events: none; /* both sliders receive pointer events individually */
-  -webkit-appearance: none;
-  appearance: none;
-  background: none;
-  outline: none;
-  height: 0;
-}
-
-/* thumbs */
-.mpf-price__range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  pointer-events: auto;
-  width: 18px; height: 18px;
-  background: #fff;
-  border: 2px solid var(--mpf-primary);
-  border-radius: 50%;
-  box-shadow: 0 0 0 4px var(--mpf-primary-100);
-}
-.mpf-price__range::-moz-range-thumb {
-  pointer-events: auto;
-  width: 18px; height: 18px;
-  background: #fff;
-  border: 2px solid var(--mpf-primary);
-  border-radius: 50%;
-  box-shadow: 0 0 0 4px var(--mpf-primary-100);
-}
-
-/* remove default tracks */
-.mpf-price__range::-webkit-slider-runnable-track { background: transparent; }
-.mpf-price__range::-moz-range-track { background: transparent; }
