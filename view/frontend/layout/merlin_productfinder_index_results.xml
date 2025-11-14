@@ -3,7 +3,7 @@
       layout="1column"
       xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
     <head>
-        <css src="Merlin_ProductFinder::css/productfinder-results.css"/>
+        <css src="Merlin_ProductFinder::css/product-finder.css"/>
     </head>
     <body>
         <referenceContainer name="content">
