@@ -38,7 +38,7 @@ class Options extends Action
 
     public function execute()
     {
-        $r = $this->getRequest();
+        $r   = $this->getRequest();
         $res = $this->resultJsonFactory->create();
 
         try {
@@ -69,9 +69,13 @@ class Options extends Action
             $out = [];
             foreach ($raw as $k => $v) {
                 $k = trim((string)$k);
-                if ($k === '') continue;
+                if ($k === '') {
+                    continue;
+                }
                 // take first scalar value
-                if (is_array($v)) { $v = reset($v); }
+                if (is_array($v)) {
+                    $v = reset($v);
+                }
                 $out[$k] = trim((string)$v);
             }
             return $out;
@@ -107,7 +111,9 @@ class Options extends Action
 
         // Apply already chosen filters. Use (eq OR finset) to support select & multiselect.
         foreach ($filters as $code => $value) {
-            if ($value === '') continue;
+            if ($value === '') {
+                continue;
+            }
             $col->addAttributeToFilter([
                 ['attribute' => $code, 'eq' => $value],
                 ['attribute' => $code, 'finset' => $value],
@@ -118,25 +124,35 @@ class Options extends Action
         $ids = [];
         foreach ($col as $p) {
             $val = $p->getData($nextCode);
-            if ($val === null || $val === '' || $val === false) continue;
+            if ($val === null || $val === '' || $val === false) {
+                continue;
+            }
 
             if (is_string($val) && strpos($val, ',') !== false) {
                 foreach (explode(',', $val) as $v) {
                     $v = trim($v);
-                    if ($v !== '' && $v !== '0') $ids[$v] = true;
+                    if ($v !== '' && $v !== '0') {
+                        $ids[$v] = true;
+                    }
                 }
             } elseif (is_array($val)) {
                 foreach ($val as $v) {
                     $v = (string)$v;
-                    if ($v !== '' && $v !== '0') $ids[$v] = true;
+                    if ($v !== '' && $v !== '0') {
+                        $ids[$v] = true;
+                    }
                 }
             } else {
                 $v = (string)$val;
-                if ($v !== '' && $v !== '0') $ids[$v] = true;
+                if ($v !== '' && $v !== '0') {
+                    $ids[$v] = true;
+                }
             }
         }
 
-        if (!$ids) return [];
+        if (!$ids) {
+            return [];
+        }
 
         // Map ids -> labels (store scoped)
         $labelMap = [];
@@ -166,17 +182,25 @@ class Options extends Action
         // try repository
         try {
             $attr = $this->attributeRepository->get('catalog_product', $code);
-            if (method_exists($attr, 'setStoreId')) $attr->setStoreId($storeId);
+            if (method_exists($attr, 'setStoreId')) {
+                $attr->setStoreId($storeId);
+            }
             $rows = $attr->getOptions() ?? [];
             $out = [];
             foreach ($rows as $opt) {
                 $v = (string)$opt->getValue();
                 $l = (string)$opt->getLabel();
-                if ($v === '' || $v === '0' && trim($l) === '') continue;
+                if ($v === '' || $v === '0' && trim($l) === '') {
+                    continue;
+                }
                 $out[] = ['value' => $v, 'label' => ($l !== '' ? $l : $v)];
             }
-            if ($out) return $out;
-        } catch (\Throwable $e) { /* fall through */ }
+            if ($out) {
+                return $out;
+            }
+        } catch (\Throwable $e) {
+            /* fall through */
+        }
 
         // fallback: source model
         $attr = $this->eavConfig->getAttribute('catalog_product', $code);
@@ -187,7 +211,9 @@ class Options extends Action
             foreach ($rows as $r) {
                 $v = isset($r['value']) ? (string)$r['value'] : '';
                 $l = isset($r['label']) ? (string)$r['label'] : '';
-                if ($v === '' || ($v === '0' && trim($l) === '')) continue;
+                if ($v === '' || ($v === '0' && trim($l) === '')) {
+                    continue;
+                }
                 $out[] = ['value' => $v, 'label' => ($l !== '' ? $l : $v)];
             }
             return $out;
