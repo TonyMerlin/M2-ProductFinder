@@ -9,6 +9,7 @@ use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\Registry;
 use Magento\Framework\View\Result\PageFactory;
+use Magento\Store\Model\StoreManagerInterface;
 use Merlin\ProductFinder\Helper\Data as Helper;
 
 class Results extends Action
@@ -18,6 +19,7 @@ class Results extends Action
     private Helper $helper;
     private Registry $registry;
     private EavConfig $eavConfig;
+    private StoreManagerInterface $storeManager;
 
     public function __construct(
         Context $context,
@@ -25,7 +27,8 @@ class Results extends Action
         ProductCollectionFactory $collectionFactory,
         Helper $helper,
         Registry $registry,
-        EavConfig $eavConfig
+        EavConfig $eavConfig,
+        StoreManagerInterface $storeManager
     ) {
         parent::__construct($context);
         $this->pageFactory        = $pageFactory;
@@ -33,6 +36,7 @@ class Results extends Action
         $this->helper             = $helper;
         $this->registry           = $registry;
         $this->eavConfig          = $eavConfig;
+        $this->storeManager       = $storeManager;
     }
 
     public function execute()
@@ -44,8 +48,7 @@ class Results extends Action
         $params = $this->getRequest()->getParams();
 
         // 1) get all profiles from config
-        // merlin_productfinder/general/attribute_set_profiles
-        $profiles = $this->helper->getAttributeSetProfiles(); // we added this earlier to Helper
+        $profiles  = $this->helper->getAttributeSetProfiles();
         $attrSetId = isset($params['attribute_set_id']) ? (int)$params['attribute_set_id'] : 0;
 
         // 2) base collection
@@ -58,8 +61,8 @@ class Results extends Action
             'special_to_date',
             'small_image'
         ]);
-$collection->addAttributeToFilter('status', 1);
-$collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
+        $collection->addAttributeToFilter('status', 1);
+        $collection->addAttributeToFilter('visibility', ['in' => [2, 3, 4]]);
 
         // 3) If attribute set chosen, filter to it
         if ($attrSetId > 0) {
@@ -87,32 +90,27 @@ $collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
             $collection->addAttributeToFilter($code, ['in' => $values]);
         };
 
-        // 4) If we have a profile for this attribute set, we use that to decide what to filter
+        // 4) Profile-based filtering
         if ($attrSetId && isset($profiles[$attrSetId]) && is_array($profiles[$attrSetId])) {
             $profile  = $profiles[$attrSetId];
             $sections = $profile['sections'] ?? [];
             $map      = $profile['map'] ?? [];
             $extras   = $profile['extras'] ?? [];
 
-            // --- MAPPED FIELDS ---
-            // sections might contain "appliance_type","color","price","extras",...
+            // --- MAPPED FIELDS (except price/extras) ---
             foreach ($sections as $logical) {
-                // skip price & extras here, we handle them below
                 if ($logical === 'price' || $logical === 'extras') {
                     continue;
                 }
 
-                // real attribute code for this logical field
                 $realCode = $map[$logical] ?? $logical;
 
-                // request param will have the logical name, e.g. ?appliance_type[]=...
                 if (isset($params[$logical])) {
                     $applyAttr($realCode, $params[$logical]);
                 }
             }
 
             // --- EXTRAS ---
-            // extras: { "energy_rating":"energy_rating", "frost_free":"frost_free" }
             if (!empty($extras) && is_array($extras)) {
                 foreach ($extras as $key => $realCode) {
                     if (isset($params[$key])) {
@@ -121,24 +119,7 @@ $collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
                 }
             }
 
-            // --- PRICE --- (from slider, independent of sections)
-            $min = $params['price_min'] ?? null;
-            $max = $params['price_max'] ?? null;
-
-            if ($min !== null || $max !== null) {
-                // use global price attr fallback
-                $priceAttr = $this->helper->getConfig('mapping/price_attribute') ?: 'price';
-                $cond = [];
-                if ($min !== null && $min !== '') {
-                    $cond['from'] = (float)$min;
-                }
-                if ($max !== null && $max !== '') {
-                    $cond['to'] = (float)$max;
-                }
-                if (!empty($cond)) {
-                    $collection->addAttributeToFilter($priceAttr, $cond);
-                }
-            }
+            // NOTE: price slider handled *after* this block via final_price index
         } else {
             // 5) fallback to OLD behaviour (global mapping) if no profile
             // Product type
@@ -158,25 +139,54 @@ $collection->addAttributeToFilter('visibility', ["in" => [2,3,4]]);
                     $applyAttr((string)$attrCode, (array)$params[$key]);
                 }
             }
-            // Price
-            $min = $params['price_min'] ?? null;
-            $max = $params['price_max'] ?? null;
+            // NOTE: price slider handled globally below
+        }
+
+        /**
+         * 5b) PRICE SLIDER (global, special-price aware via final_price)
+         *
+         * We no longer filter on the raw "price" attribute.
+         * Instead, we join catalog_product_index_price and use final_price,
+         * which already includes special_price and catalog rules.
+         */
+        $min = $params['price_min'] ?? null;
+        $max = $params['price_max'] ?? null;
+
+        if ($min !== null || $max !== null) {
+            $min = ($min !== '' ? (float)$min : null);
+            $max = ($max !== '' ? (float)$max : null);
+
             if ($min !== null || $max !== null) {
-                $priceAttr = $this->helper->getConfig('mapping/price_attribute') ?: 'price';
-                $cond = [];
-                if ($min !== null && $min !== '') {
-                    $cond['from'] = (float)$min;
+                $store     = $this->storeManager->getStore();
+                $websiteId = (int)$store->getWebsiteId();
+                $customerGroupId = 0; // adjust if you support customer groups
+
+                $priceIndexTable = $collection->getTable('catalog_product_index_price');
+                $alias           = 'mpf_price_idx';
+
+                // Join price index if not already joined
+                $select = $collection->getSelect();
+                $from   = $select->getPart(\Zend_Db_Select::FROM);
+                if (!isset($from[$alias])) {
+                    $select->joinLeft(
+                        [$alias => $priceIndexTable],
+                        $alias . '.entity_id = e.entity_id'
+                        . ' AND ' . $alias . '.website_id = ' . (int)$websiteId
+                        . ' AND ' . $alias . '.customer_group_id = ' . (int)$customerGroupId,
+                        []
+                    );
                 }
-                if ($max !== null && $max !== '') {
-                    $cond['to'] = (float)$max;
+
+                if ($min !== null) {
+                    $select->where($alias . '.final_price >= ?', $min);
                 }
-                if (!empty($cond)) {
-                    $collection->addAttributeToFilter($priceAttr, $cond);
+                if ($max !== null) {
+                    $select->where($alias . '.final_price <= ?', $max);
                 }
             }
         }
 
-        // 6) Sorting + pagination (keep as before)
+        // 6) Sorting + pagination
         $order = $params['order'] ?? 'name';
         $dir   = strtoupper($params['dir'] ?? 'ASC');
         $allowedOrders = ['name', 'price', 'created_at'];
