@@ -96,9 +96,9 @@
                    showInDefault="1"
                    showInWebsite="1"
                    showInStore="1">
-                <label>Form Layout &amp; Content</label>
+                <label>Above and Below Content</label>
 
-                <field id="sections"
+                <!-- <field id="sections"
                        translate="label"
                        type="text"
                        sortOrder="10"
@@ -108,7 +108,7 @@
                     <label>Sections (Drag to Reorder)</label>
                     <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Sortable</frontend_model>
                     <comment>This is kept for backward compatibility, but per-attribute-set profiles will override.</comment>
-                </field>
+                </field> -->
 
                 <field id="pre_html"
                        translate="label"
@@ -134,7 +134,7 @@
             </group>
 
             <!-- ================== LEGACY MAPPING (optional to remove later) ================== -->
-            <group id="mapping"
+<!--            <group id="mapping"
                    translate="label"
                    sortOrder="30"
                    showInDefault="1"
@@ -216,7 +216,7 @@
                        showInStore="1">
                     <label>Price Step</label>
                 </field>
-            </group>
+            </group> -->
 
         </section>
     </system>
