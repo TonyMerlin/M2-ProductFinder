@@ -1,4 +1,4 @@
-define(['jquery', 'underscore'], function ($, _) {
+define(['jquery', 'underscore', 'jquery-ui-modules/sortable'], function ($, _) {
     'use strict';
 
     function esc(s) {
@@ -20,9 +20,49 @@ define(['jquery', 'underscore'], function ($, _) {
         return m ? decodeURIComponent(m[1]) : '';
     }
 
+    function parseJsonFromScriptTag(id) {
+        var el = document.getElementById(id);
+        if (!el) return {};
+        try {
+            return JSON.parse(el.textContent || el.innerText || '{}') || {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    // inject builder styles
+    function injectBuilderStyles() {
+        var STYLE_ID = 'merlin-pf-builder-styles';
+        if (document.getElementById(STYLE_ID)) return;
+
+        var css = ''
+            + '.merlin-pf-builder-wrapper{margin-top:15px;display:flex;flex-wrap:wrap;gap:20px;}'
+            + '.merlin-pf-builder-column{background:#fafafa;border:1px solid #d6d6d6;border-radius:8px;padding:12px;flex:1 1 320px;min-width:280px;box-shadow:0 1px 2px rgba(0,0,0,.04);}'
+            + '@media (min-width:900px){.merlin-pf-builder-wrapper{flex-wrap:nowrap;}}'
+            + '.merlin-pf-builder-title{font-weight:600;margin-bottom:8px;font-size:14px;color:#333;}'
+            + '.merlin-pf-attr-list,.merlin-pf-step-list{min-height:140px;margin:0;padding:0;list-style:none;border:1px dashed #c8c8c8;border-radius:6px;background:#fff;}'
+            + '.merlin-pf-attr-item,.merlin-pf-step-item{background:#fff;border:1px solid #d8d8d8;padding:6px 10px 6px 30px;margin:6px;border-radius:4px;font-size:13px;color:#333;position:relative;cursor:grab;transition:background .15s ease,border-color .15s ease;display:flex;align-items:center;justify-content:space-between;gap:6px;}'
+            + '.merlin-pf-attr-item:hover,.merlin-pf-step-item:hover{background:#f1f3f7;border-color:#bbb;}'
+            + '.merlin-pf-dragging{opacity:.6;cursor:grabbing!important;}'
+            + '.merlin-pf-handle{position:absolute;left:8px;top:50%;transform:translateY(-50%);cursor:grab;width:12px;height:12px;opacity:.7;}'
+            + '.merlin-pf-handle::before{content:"::";font-size:13px;color:#888;line-height:12px;}'
+            + '.merlin-pf-attr-item:hover .merlin-pf-handle,.merlin-pf-step-item:hover .merlin-pf-handle{opacity:1;}'
+            + '.merlin-pf-drop-target{border:2px dashed #4f9ddf!important;background:#ecf6ff!important;}'
+            + '.merlin-pf-step-label{flex:1;}'
+            + '.merlin-pf-step-remove span{font-size:11px;}';
+
+        var style = document.createElement('style');
+        style.type = 'text/css';
+        style.id = STYLE_ID;
+        style.appendChild(document.createTextNode(css));
+        document.head.appendChild(style);
+    }
+
     return function (config, element) {
         var $root = $(element);
         if (!$root.length) return;
+
+        injectBuilderStyles();
 
         // Prevent config form submission on our buttons
         $root.on('click', [
@@ -42,6 +82,9 @@ define(['jquery', 'underscore'], function ($, _) {
         var fieldId   = $root.data('field-id');
         var $textarea = $('#' + fieldId);
         var uploadUrl = String($root.data('upload-url') || '');
+
+        // Attribute metadata per set (from profiles.phtml)
+        var attrMeta = parseJsonFromScriptTag('mpf-attr-meta-json') || {};
 
         // Live JSON source-of-truth
         var profiles = {};
@@ -82,6 +125,8 @@ define(['jquery', 'underscore'], function ($, _) {
         var $imgPreview     = $root.find('[data-mpf-image-preview]');
         var $imgInput       = $root.find('[data-mpf-image-input]');
         var $imgHiddenUrl   = $root.find('[data-mpf-image-url]');
+        var $attrList       = $root.find('[data-mpf-attr-list]');
+        var $stepList       = $root.find('[data-mpf-step-list]');
         var currentSetId    = null;
 
         function addSectionRow(logical, mapped) {
@@ -128,10 +173,92 @@ define(['jquery', 'underscore'], function ($, _) {
             $sectionsWrap.append(html);
         }
 
+        function makeAttrLi(code, label) {
+            code  = String(code || '');
+            label = String(label || code);
+
+            var $li = $('<li/>', {
+                'class': 'merlin-pf-attr-item',
+                'data-code': code,
+                'data-label': label
+            });
+            $li.append(
+                $('<span/>', {'class': 'merlin-pf-handle'}),
+                $('<span/>').text(label + ' (' + code + ')')
+            );
+            return $li;
+        }
+
+        // Clean label: "Item Type (item_type)"
+        function makeStepLi(code, label, logical) {
+            code    = String(code || '');
+            label   = String(label || code);
+            logical = logical || code;
+
+            var $li = $('<li/>', {
+                'class': 'merlin-pf-step-item',
+                'data-code': code,
+                'data-logical': logical,
+                'data-label': label
+            });
+            $li.append(
+                $('<span/>', {'class': 'merlin-pf-handle'}),
+                $('<span/>', {'class': 'merlin-pf-step-label'}).text(label + ' (' + code + ')'),
+                $('<button type="button" class="action-secondary merlin-pf-step-remove"><span>'
+                    + esc($.mage ? $.mage.__('Remove') : 'Remove') + '</span></button>')
+            );
+            return $li;
+        }
+
+        /**
+         * Populate the drag & drop builder lists for the given attribute set.
+         * IMPORTANT: Profile Steps follow profile.sections order.
+         */
+        function renderBuilder(setId) {
+            $attrList.empty();
+            $stepList.empty();
+            if (!setId) return;
+
+            var allAttrs = attrMeta[setId] || [];
+            var profile  = profiles[setId] || { sections: [], map: {} };
+
+            // Index attributes by code
+            var byCode = {};
+            allAttrs.forEach(function (attr) {
+                var code = String(attr.code || '');
+                if (!code) return;
+                byCode[code] = attr;
+            });
+
+            var usedCodes = {};
+
+            // 1) Build Profile Steps in profile.sections order
+            (profile.sections || []).forEach(function (logical) {
+                var code = (profile.map && profile.map[logical]) ? profile.map[logical] : logical;
+                code = String(code || '');
+                if (!code) return;
+
+                var attr  = byCode[code] || {};
+                var label = String(attr.label || code);
+
+                $stepList.append(makeStepLi(code, label, logical));
+                usedCodes[code] = true;
+            });
+
+            // 2) Unused attrs in Available list
+            allAttrs.forEach(function (attr) {
+                var code  = String(attr.code || '');
+                if (!code || usedCodes[code]) return;
+                var label = String(attr.label || code);
+                $attrList.append(makeAttrLi(code, label));
+            });
+
+            initSortables();
+        }
+
         function renderProfile(setId) {
             $sectionsWrap.empty();
 
-            // Image UI: hydrate from profile.image
             var profile = profiles[setId] || {};
             var url     = String(profile.image || '').trim();
             if (url) {
@@ -144,7 +271,6 @@ define(['jquery', 'underscore'], function ($, _) {
                 $imageRow.hide();
             }
 
-            // Sections & extras
             profile = profiles[setId] || { sections: [], map: {}, extras: {} };
             (profile.sections || []).forEach(function (logical) {
                 var mapped = (profile.map && profile.map[logical]) ? profile.map[logical] : '';
@@ -152,9 +278,11 @@ define(['jquery', 'underscore'], function ($, _) {
             });
             var extras = profile.extras || {};
             Object.keys(extras).forEach(function (k) { addExtraRow(k, extras[k]); });
+
+            renderBuilder(setId);
         }
 
-        // Merge current UI into profiles[setId] (non-destructive to other sets)
+        // Merge current UI into profiles[setId]
         function collectIntoProfile(setId) {
             if (!setId) return;
 
@@ -170,18 +298,22 @@ define(['jquery', 'underscore'], function ($, _) {
             var newMap      = {};
             var newExtras   = {};
 
+            // sections order = step list order
+            $stepList.children('.merlin-pf-step-item').each(function () {
+                var $item   = $(this);
+                var code    = String($item.data('code') || '').trim();
+                var logical = String($item.data('logical') || code).trim();
+                if (!code || !logical) return;
+                newSections.push(logical);
+                newMap[logical] = code;
+            });
+
+            // Extras from manual rows
             $sectionsWrap.children('.merlin-pf-row').each(function () {
                 var $row  = $(this);
                 var rtype = $row.data('row-type');
 
-                if (rtype === 'section') {
-                    var logical = String($row.find('[data-mpf-logical]').val() || '').trim();
-                    var mapped  = String($row.find('[data-mpf-mapped]').val() || '').trim();
-                    if (logical) {
-                        newSections.push(logical);
-                        if (mapped) newMap[logical] = mapped;
-                    }
-                } else if (rtype === 'extra') {
+                if (rtype === 'extra') {
                     var key  = String($row.find('[data-mpf-extra-key]').val() || '').trim();
                     var code = String($row.find('[data-mpf-extra-mapped]').val() || '').trim();
                     if (key && code) newExtras[key] = code;
@@ -197,7 +329,58 @@ define(['jquery', 'underscore'], function ($, _) {
             profiles[setId] = profile;
         }
 
-        // Attribute set switch: persist current ? render next
+        // jQuery UI sortable wiring (DND between lists)
+        function initSortables() {
+            if ($attrList.data('ui-sortable')) $attrList.sortable('destroy');
+            if ($stepList.data('ui-sortable')) $stepList.sortable('destroy');
+
+            $attrList.sortable({
+                connectWith: '[data-mpf-step-list]',
+                items: '> li',
+                placeholder: 'merlin-pf-drop-target',
+                handle: '.merlin-pf-handle',
+                receive: function (event, ui) {
+                    var $item = $(ui.item);
+                    // convert STEP dropped back into AVAILABLE
+                    if ($item.hasClass('merlin-pf-step-item')) {
+                        var code  = String($item.data('code') || '').trim();
+                        var label = String($item.data('label') || code).trim();
+                        var $attr = makeAttrLi(code, label);
+                        $item.replaceWith($attr);
+                    }
+                }
+            }).disableSelection();
+
+            $stepList.sortable({
+                connectWith: '[data-mpf-attr-list]',
+                items: '> li',
+                placeholder: 'merlin-pf-drop-target',
+                handle: '.merlin-pf-handle',
+                receive: function (event, ui) {
+                    var $item = $(ui.item);
+                    // convert AVAILABLE dropped into STEP
+                    if ($item.hasClass('merlin-pf-attr-item')) {
+                        var code   = String($item.data('code') || '').trim();
+                        var label  = String($item.data('label') || code).trim();
+                        var $step  = makeStepLi(code, label, code);
+                        $item.replaceWith($step);
+                    }
+                }
+            }).disableSelection();
+        }
+
+        // click "Remove" on a step -> move back to available
+        $root.on('click', '.merlin-pf-step-remove', function () {
+            var $li   = $(this).closest('.merlin-pf-step-item');
+            var code  = String($li.data('code') || '').trim();
+            var label = String($li.data('label') || code).trim();
+            if (code) {
+                $attrList.append(makeAttrLi(code, label));
+            }
+            $li.remove();
+        });
+
+        // Attribute set switch: persist current ? render next + builder
         $attrsetSelect.on('change', function () {
             var newId = String($(this).val() || '').trim();
 
@@ -207,13 +390,22 @@ define(['jquery', 'underscore'], function ($, _) {
             }
 
             currentSetId = newId || null;
-            if (currentSetId) renderProfile(currentSetId);
+            if (currentSetId) {
+                renderProfile(currentSetId);
+            } else {
+                $sectionsWrap.empty();
+                $attrList.empty();
+                $stepList.empty();
+            }
         });
 
         // New/Reset
         $root.on('click', '[data-mpf-new-profile]', function () {
             var setId = String($attrsetSelect.val() || '').trim();
-            if (!setId) { alert($.mage ? $.mage.__('Please select an attribute set first.') : 'Please select an attribute set first.'); return; }
+            if (!setId) {
+                alert($.mage ? $.mage.__('Please select an attribute set first.') : 'Please select an attribute set first.');
+                return;
+            }
             profiles[setId] = { label: getSetName(setId), sections: [], map: {}, extras: {}, image: '' };
             currentSetId = setId;
             renderProfile(setId);
@@ -225,15 +417,15 @@ define(['jquery', 'underscore'], function ($, _) {
             $imageRow.show();
         });
 
-        // Upload image (correct field name + form_key)
+        // Upload image
         $root.on('click', '[data-mpf-image-upload]', function () {
             var file = ($imgInput[0] && $imgInput[0].files && $imgInput[0].files[0]) ? $imgInput[0].files[0] : null;
             if (!file) { alert($.mage ? $.mage.__('Choose an image file first.') : 'Choose an image file first.'); return; }
             if (!uploadUrl) { alert('Upload URL missing.'); return; }
 
             var fd = new FormData();
-            fd.append('profile_image', file);     // <-- must match controller's fileId
-            fd.append('form_key', getFormKey());  // <-- CSRF
+            fd.append('image', file);
+            fd.append('form_key', getFormKey());
 
             $.ajax({
                 url: uploadUrl,
@@ -245,19 +437,14 @@ define(['jquery', 'underscore'], function ($, _) {
                 showLoader: true,
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).done(function (resp) {
-                // Accept shapes: {ok,url}, {url}, {data:{url}}, {result:{url}}
                 var url = '';
                 if (resp && typeof resp === 'object') {
-                    url = resp.url
-                       || (resp.ok && resp.url)
-                       || (resp.data && resp.data.url)
-                       || (resp.result && resp.result.url)
-                       || '';
+                    url = resp.url || (resp.data && resp.data.url) || (resp.result && resp.result.url) || '';
                 }
                 url = String(url || '').trim();
 
                 if (!url) {
-                    alert(resp && (resp.message || resp.error) ? (resp.message || resp.error) : ($.mage ? $.mage.__('Upload failed: no URL returned.') : 'Upload failed: no URL returned.'));
+                    alert(resp && resp.message ? resp.message : ($.mage ? $.mage.__('Upload failed: no URL returned.') : 'Upload failed: no URL returned.'));
                     return;
                 }
 
@@ -270,8 +457,8 @@ define(['jquery', 'underscore'], function ($, _) {
                     profiles[sid].image = url;
                     writeJsonToTextarea();
                 }
-            }).fail(function (xhr) {
-                alert('Upload failed' + (xhr && xhr.status ? (' (HTTP ' + xhr.status + ')') : ''));
+            }).fail(function () {
+                alert('Upload failed.');
             });
         });
 
@@ -287,7 +474,7 @@ define(['jquery', 'underscore'], function ($, _) {
             }
         });
 
-        // Add section / extra
+        // Add section / extra (legacy manual UI still supported)
         $root.on('click', '[data-mpf-add-section]', function () { addSectionRow('', ''); });
         $root.on('click', '[data-mpf-add-extra]', function () { addExtraRow('', ''); });
 
@@ -297,7 +484,10 @@ define(['jquery', 'underscore'], function ($, _) {
         // Save to JSON
         $root.on('click', '[data-mpf-save-json]', function () {
             var setId = String($attrsetSelect.val() || '').trim();
-            if (!setId) { alert($.mage ? $.mage.__('Please select an attribute set first.') : 'Please select an attribute set first.'); return; }
+            if (!setId) {
+                alert($.mage ? $.mage.__('Please select an attribute set first.') : 'Please select an attribute set first.');
+                return;
+            }
             collectIntoProfile(setId);
             writeJsonToTextarea();
         });
