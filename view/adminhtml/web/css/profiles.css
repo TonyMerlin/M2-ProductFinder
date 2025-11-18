@@ -1,0 +1,93 @@
+/* --- Builder Wrapper --- */
+.merlin-pf-builder-wrapper {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+/* --- Columns --- */
+.merlin-pf-builder-column {
+    background: #fafafa;
+    border: 1px solid #d6d6d6;
+    border-radius: 8px;
+    padding: 12px;
+    flex: 1 1 320px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+
+.merlin-pf-builder-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+/* --- Lists --- */
+.merlin-pf-attr-list,
+.merlin-pf-step-list {
+    min-height: 140px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px dashed #c8c8c8;
+    border-radius: 6px;
+    background: #fff;
+}
+
+/* --- Items --- */
+.merlin-pf-attr-item,
+.merlin-pf-step-item {
+    background: #fff;
+    border: 1px solid #d8d8d8;
+    padding: 6px 10px 6px 30px;
+    margin: 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #333;
+    position: relative;
+    cursor: grab;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.merlin-pf-attr-item:hover,
+.merlin-pf-step-item:hover {
+    background: #f1f3f7;
+    border-color: #bbb;
+}
+
+/* --- Active dragging state --- */
+.merlin-pf-dragging {
+    opacity: 0.6;
+    cursor: grabbing !important;
+}
+
+/* --- Drag handle icon --- */
+.merlin-pf-handle {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: grab;
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
+}
+
+.merlin-pf-handle::before {
+    content: '??';
+    font-size: 14px;
+    color: #888;
+    line-height: 12px;
+}
+
+.merlin-pf-attr-item:hover .merlin-pf-handle,
+.merlin-pf-step-item:hover .merlin-pf-handle {
+    opacity: 1;
+}
+
+/* --- Drop target highlight --- */
+.merlin-pf-drop-target {
+    border: 2px dashed #4f9ddf !important;
+    background: #ecf6ff !important;
+}
