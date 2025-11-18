@@ -7,12 +7,15 @@ $fieldId  = $block->getHtmlId();
 usort($attrSets, function ($a, $b) {
     return strcasecmp($a['name'] ?? '', $b['name'] ?? '');
 });
+
+// Attribute metadata for builder (visible-on-front attributes per set)
+$attrMetaJson = $block->getAttributeMapJson();
 ?>
-<!-- MPF profiles template loaded @ <?= date('Y-m-d H:i:s') ?> -->
+<!-- MPF profiles template -->
 <div class="merlin-pf-profiles"
      data-mpf-profiles
      data-field-id="<?= $block->escapeHtmlAttr($fieldId) ?>"
-     data-upload-url="<?= $block->escapeUrl($block->getUrl('merlin_productfinder/upload/image')) ?>"
+     data-upload-url="<?= $block->escapeUrl($block->getImageUploadUrl()) ?>"
      data-attrsets='<?= $block->escapeHtmlAttr(json_encode($attrSets)) ?>'>
 
     <!-- Real JSON textarea Magento saves -->
@@ -25,9 +28,15 @@ usort($attrSets, function ($a, $b) {
             <span><?= __('Attribute Set Profiles') ?></span>
         </label>
         <div class="admin__field-control">
-            <p><?= __('Select an attribute set, add sections/extras/image, then click "Save to JSON Field", and finally "Save Config".') ?></p>
+            <p>
+                <?= __(
+                    'Select an attribute set, drag attributes into the Profile Steps in the order you want customers to answer, ' .
+                    'optionally upload an image, then click "Save Profile JSON" and finally "Save Config".'
+                ) ?>
+            </p>
 
-            <div class="merlin-pf-profiles__top" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="merlin-pf-profiles__top"
+                 style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <label><?= __('Attribute Set') ?></label>
                 <select data-mpf-attrset>
                     <option value=""><?= __('-- choose --') ?></option>
@@ -44,14 +53,16 @@ usort($attrSets, function ($a, $b) {
             </div>
 
             <!-- Image row (JS will fill & toggle this) -->
-            <div class="merlin-pf-profiles__image" data-mpf-image-row style="margin:12px 0; display:none;">
+            <div class="merlin-pf-profiles__image" data-mpf-image-row
+                 style="margin:12px 0; display:none;">
                 <label class="admin__field-label" style="display:block;margin-bottom:6px;">
                     <span><?= __('Profile Image (optional)') ?></span>
                 </label>
 
                 <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
                     <div>
-                        <img data-mpf-image-preview src="" alt="" style="max-width:220px;display:none;border:1px solid #e3e6ef;border-radius:8px;"/>
+                        <img data-mpf-image-preview src="" alt=""
+                             style="max-width:220px;display:none;border:1px solid #e3e6ef;border-radius:8px;"/>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                         <input type="file" data-mpf-image-input accept="image/*" />
@@ -65,25 +76,53 @@ usort($attrSets, function ($a, $b) {
                         <input type="hidden" data-mpf-image-url value="" />
                     </div>
                 </div>
-                <small class="note"><?= __('Shown between the first and second field on the frontend.') ?></small>
+                <small class="note">
+                    <?= __('Shown between the first and second field on the frontend.') ?>
+                </small>
             </div>
 
-            <div class="merlin-pf-profiles__body" data-mpf-sections></div>
+            <!-- Drag & Drop Builder -->
+            <div class="merlin-pf-builder-wrapper">
+                <div class="merlin-pf-builder-column">
+                    <div class="merlin-pf-builder-title">
+                        <?= __('Available Attributes') ?>
+                    </div>
+                    <ul class="merlin-pf-attr-list" data-mpf-attr-list></ul>
+                    <small class="note">
+                        <?= __('Drag from here into "Profile Steps" to include attributes in the wizard.') ?>
+                    </small>
+                </div>
 
-            <div class="merlin-pf-profiles__actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button type="button" class="action-add" data-mpf-add-section>
-                    <?= __('Add Section') ?>
-                </button>
-                <button type="button" class="action-add" data-mpf-add-extra>
-                    <?= __('Add Extra Attribute') ?>
-                </button>
+                <div class="merlin-pf-builder-column">
+                    <div class="merlin-pf-builder-title">
+                        <?= __('Profile Steps (drag to order)') ?>
+                    </div>
+                    <ul class="merlin-pf-step-list" data-mpf-step-list></ul>
+                    <small class="note">
+                        <?= __('This defines the question order the customer sees on the frontend.') ?>
+                    </small>
+                </div>
+            </div>
+
+            <!-- Legacy container kept ONLY for backward compat (hidden, no buttons) -->
+            <div class="merlin-pf-legacy-wrapper" style="display:none;">
+                <div class="merlin-pf-profiles__body" data-mpf-sections></div>
+            </div>
+
+            <!-- Visible save button (builder + extras from JSON all go through this) -->
+            <div style="margin-top:12px;">
                 <button type="button" class="action-secondary" data-mpf-save-json>
-                    <?= __('Save to JSON Field') ?>
+                    <?= __('Save Profile JSON') ?>
                 </button>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Attribute metadata JSON for JS builder -->
+<script type="application/json" id="mpf-attr-meta-json">
+<?= /* @noEscape */ $attrMetaJson ?>
+</script>
 
 <script type="text/x-magento-init">
 {

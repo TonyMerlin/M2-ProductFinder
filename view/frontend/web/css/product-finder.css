@@ -1,4 +1,4 @@
-/* ========== Merlin Product Finder â€” Base ========== */
+/* ========== Merlin Product Finder — Base ========== */
 :root {
   --mpf-bg: #0c68af;
   --mpf-surface: #f8f9fb;
@@ -11,17 +11,18 @@
   --mpf-success: #1a9b65;
   --mpf-danger: #e53935;
   --mpf-radius: 14px;
-  --mpf-shadow: 0 10px 30px rgba(16,24,40,.08);
-}
+  --mpf-shadow: 0 10px 30px rgba(16,24,40,.08); 
+  }
 
-/* container */
+/* ========== Finder container & header ========== */
 .merlin-finder {
-  background: var(--mpf-bg);
-  border: 1px solid var(--mpf-border);
-  border-radius: var(--mpf-radius);
-  box-shadow: var(--mpf-shadow);
-  padding: clamp(16px, 3vw, 28px);
+  background: linear-gradient(135deg, #0d6fbf 0%, #074b88 100%);
+  border-radius: 18px;
+  border: none;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.28);
+  padding: clamp(20px, 3vw, 32px);
   margin: clamp(12px, 2vw, 24px) 0;
+  color: #fff;
 }
 
 /* optional pre / post content */
@@ -33,38 +34,63 @@
   margin-bottom: 12px;
 }
 
+/* Optional header block (if you add it in template) */
+.merlin-finder__header {
+  margin-bottom: 18px;
+}
+.merlin-finder__title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  margin: 0 0 4px;
+}
+.merlin-finder__subtitle {
+  font-size: .95rem;
+  opacity: .9;
+}
+
+/* grid layout: finder form left/right */
 .merlin-grid.merlin-pf-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(12px, 2vw, 18px);
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: clamp(14px, 2.4vw, 20px);
 }
 
 @media (max-width: 900px) {
-  .merlin-grid.merlin-pf-form { grid-template-columns: 1fr; }
+  .merlin-grid.merlin-pf-form {
+    grid-template-columns: 1fr;
+  }
 }
 
-/* fields */
+/* ========== Fields ========== */
 .merlin-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--mpf-surface);
-  border: 1px solid var(--mpf-border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  transition: border-color .2s ease, box-shadow .2s ease;
+  background: rgba(248, 249, 251, 0.98);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 14px;
+  padding: 12px 14px 13px;
   margin-bottom: 10px;
+  transition:
+    border-color .18s ease,
+    box-shadow .18s ease,
+    transform .08s ease;
 }
 
 .merlin-field:hover {
-  border-color: #d3d7e2;
-  box-shadow: 0 6px 16px rgba(16,24,40,.06);
+  border-color: #c3d1ee;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, .14);
+  transform: translateY(-1px);
 }
 
 .merlin-field label {
   font-weight: 600;
   color: var(--mpf-text);
-  font-size: .95rem;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* step badge before each label (JS sets data-step) */
@@ -75,33 +101,34 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin-right: 8px;
-  font-size: 0.75rem;
-  color: #fff;
-  background: var(--mpf-primary);
+  font-size: 1rem;
+  color: #000000;
+  background: #cfcfcf;
   border-radius: 50%;
   font-weight: 700;
   vertical-align: middle;
 }
 
+/* selects */
 .merlin-field select.admin__control-select {
   display: block;
   width: 100%;
   border-radius: 10px;
   border: 1px solid var(--mpf-border);
   background: #fff;
-  padding: 10px 12px;
-  font-size: 1.5rem;
+  padding: 8px 12px;
+  font-size: 1.7rem;
   color: var(--mpf-text);
-  transition: border-color .2s ease, box-shadow .2s ease;
+  transition: border-color .18s ease, box-shadow .18s ease;
   outline: none;
-  -webkit-appearance: none; appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, var(--mpf-muted) 50%),
     linear-gradient(135deg, var(--mpf-muted) 50%, transparent 50%),
     linear-gradient(to right, #fff, #fff);
-  background-position: calc(100% - 22px) calc(1em + 2px),
-                       calc(100% - 16px) calc(1em + 2px),
+  background-position: calc(100% - 22px) calc(50% - 2px),
+                       calc(100% - 16px) calc(50% - 2px),
                        100% 0;
   background-size: 6px 6px, 6px 6px, 2.5rem 100%;
   background-repeat: no-repeat;
@@ -109,46 +136,8 @@
 
 .merlin-field select.admin__control-select:focus {
   border-color: var(--mpf-primary);
-  box-shadow: 0 0 0 4px var(--mpf-primary-100);
-}
-
-/* actions */
-.merlin-actions {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-  margin-top: 4px;
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-
-.merlin-actions .action.primary {
-  background: var(--mpf-primary);
-  border: 1px solid var(--mpf-primary);
-  color: #fff;
-  font-weight: 600;
-  padding: 12px 18px;
-  border-radius: 12px;
-  transition: transform .05s ease, background .2s ease;
-}
-
-.merlin-actions .action.primary:hover {
-  background: var(--mpf-primary-600);
-}
-
-.merlin-actions .action.primary:active {
-  transform: translateY(1px);
-}
-
-.merlin-actions .action.secondary {
-  background: #fff;
-  border: 1px solid var(--mpf-border);
-  color: var(--mpf-text);
-  padding: 12px 18px;
-  border-radius: 12px;
-}
+  box-shadow: 0 0 0 3px var(--mpf-primary-100); 
+  }
 
 /* helper/error notes injected by JS */
 .merlin-field[style*="color:#c00"] {
@@ -157,36 +146,117 @@
   color: #b42318 !important;
 }
 
+/* ========== Actions (Search / Clear) ========== */
+.merlin-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.merlin-actions .action.primary {
+  background: var(--mpf-success);
+  border-radius: 999px;
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  padding: 11px 22px;
+  font-size: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 12px 28px rgba(26, 155, 101, .35);
+  transition: transform .07s ease,
+              box-shadow .15s ease,
+              background .15s ease;
+}
+
+.merlin-actions .action.primary:hover {
+  background: #148356;
+  box-shadow: 0 14px 32px rgba(26, 155, 101, .45);
+  transform: translateY(-1px);
+}
+
+.merlin-actions .action.primary:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 18px rgba(26, 155, 101, .35);
+  }
+
+.merlin-actions .action.secondary {
+  background: #ff0000;
+  border: 1px solid var(--mpf-border);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 1.2rem;
+  transition: border-color .15s ease, background .15s ease;
+  }
+
+.merlin-actions .action.secondary:hover {
+  background: #f34444;
+  border-color: #ff0000;
+}
+
+/* ========== Attribute-set hero image block ========== */
+.merlin-attrset-hero {
+  background: rgba(15, 23, 42, .04);
+  border: 1px solid var(--mpf-border);
+  border-radius: 14px;
+  padding: 10px;
+  display: block;
+}
+
+.merlin-attrset-hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 170px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* Keep it tidy on small screens */
+@media (max-width: 900px){
+  .merlin-attrset-hero img { max-height: 150px; }
+   } 
+@media (max-width: 480px){
+  .merlin-attrset-hero img { max-height: 130px; }
+  }
+
 /* ========== Results grid/cards ========== */
-/* Desktop default: 3 across */
+/* Desktop default: 3 across, with refined layout */
 .merlin-grid-cards{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap: clamp(14px, 2vw, 18px);
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
-/* Tablet (keep 3 across; change to 2 if preferred) */
+/* Tablet */
 @media (max-width: 1024px){
   .merlin-grid-cards{
     grid-template-columns:repeat(3,minmax(0,1fr));
   }
 }
 
-/* Phones (e.g. 390Ã—844): 2 across */
+/* Phones: 2 across */
 @media (max-width: 768px){
   .merlin-grid-cards{
     grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:14px;
+    gap:12px;
+    padding: 0 8px;
   }
-  .merlin-card__body{ padding:12px; }
-  .merlin-price__badge{ font-size:1.5rem; }
 }
 
 /* Very small phones: 1 across */
-@media (max-width: 360px){
+@media (max-width: 480px){
   .merlin-grid-cards{
     grid-template-columns:1fr;
+    padding: 0 8px;
   }
 }
 
@@ -194,38 +264,44 @@
   border: 1px solid var(--mpf-border);
   border-radius: var(--mpf-radius);
   background: #fff;
-  box-shadow: var(--mpf-shadow);
+  box-shadow: 0 14px 32px rgba(16,24,40,.12);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform .08s ease, box-shadow .2s ease;
+  transition:
+    transform .12s ease,
+    box-shadow .16s ease,
+    border-color .16s ease;
 }
 
 .merlin-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 32px rgba(16,24,40,.12);
-}
+  transform: translateY(-3px);
+  border-color: #cbd5f5;
+  box-shadow: 0 20px 45px rgba(15,23,42,.18);
+  }
 
 .merlin-card__image{
-  display:block;
-  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   width:100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   overflow:hidden;
-  background:#fff;
+  background:#f3f4f6;
 }
 
 .merlin-card__image img{
-  width:100% !important;
-  height:100% !important;
+  max-width:92% !important;
+  max-height:92% !important;
   object-fit:contain;
   display:block;
 }
 
 .merlin-card__body {
-  padding: 14px 16px 16px;
+  padding: 14px 15px 15px;
   display: grid;
-  gap: 10px;
+  grid-template-rows: auto auto auto;
+  gap: 8px;
 }
 
 .merlin-card__title {
@@ -233,6 +309,7 @@
   font-weight: 600;
   line-height: 1.35;
   text-decoration: none;
+  font-size: 2rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -243,21 +320,22 @@
 
 .merlin-card__price{
   display:flex;
-  align-items:center;
+  align-items:baseline;
   gap:.4rem;
   flex-wrap:wrap;
   line-height:1.2;
 }
 
-.merlin-price--old      { text-decoration: line-through; opacity: .7; }
-.merlin-price--special  { font-weight: 700; }
-.merlin-price--regular  { font-weight: 600; }
+.merlin-price--old      { text-decoration: line-through; opacity: .7; font-size: 2rem; color:#9ca3af; }
+.merlin-price--special  { font-weight: 700; font-size: 2.2rem; color: var(--mpf-text); }
+.merlin-price--regular  { font-weight: 600; font-size: 1.9rem; color: var(--mpf-text); }
+
 .merlin-price__badge{
   background: var(--mpf-danger);
   color: #fff;
-  border-radius: 6px;
-  padding: .2rem .45rem;
-  font-size: .9rem;
+  border-radius: 999px;
+  padding: .12rem .45rem;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 
@@ -267,14 +345,37 @@
   border: 1px solid var(--mpf-border);
   color: var(--mpf-text);
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 999px;
   text-decoration: none;
-  transition: border-color .2s ease, box-shadow .2s ease;
-}
+  font-size: .9rem;
+  transition: border-color .2s ease, box-shadow .2s ease, background .15s ease;
+  }
 
 .merlin-card__cta:hover {
   border-color: var(--mpf-primary);
-  box-shadow: 0 0 0 4px var(--mpf-primary-100);
+  box-shadow: 0 0 0 3px var(--mpf-primary-100);
+  }
+
+/* Ensure no clipping on mobile */
+.merlin-card, .merlin-card * { box-sizing: border-box; }
+
+.merlin-card__body,
+.merlin-card__price { min-width: 0; }
+
+.merlin-price--old,
+.merlin-price--special,
+.merlin-price--regular,
+.merlin-price__badge { white-space: normal; }
+
+@media (max-width: 480px) {
+  .merlin-card__body { padding: 12px; }
+  .merlin-card__price { gap: .35rem; }
+  .merlin-price__badge { font-size: .75rem; }
+  .merlin-card__cta {
+    max-width: 100%;
+    display: inline-block;
+    margin-top: 4px;
+  }
 }
 
 /* Toolbar */
@@ -290,103 +391,172 @@
 
 .merlin-toolbar-form {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.merlin-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* On very small screens they’re allowed to stack */ @media (max-width: 640px) {
+  .merlin-results__toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .merlin-toolbar-form label {
   color: var(--mpf-muted);
-  font-size: .9rem;
+  font-size: .85rem;
 }
 .merlin-toolbar-form select {
   border: 1px solid var(--mpf-border);
-  border-radius: 10px;
-  padding: 8px 10px;
+  border-radius: 999px;
+  padding: 6px 10px;
   background: #fff;
+  color: var(--mpf-text);
+  font-size: 1.5rem;
+}
+
+/* ========== Price slider polish (if used) ========== */
+.mpf-price {
+  background: rgba(248, 249, 251, 0.98);
+  border-radius: 14px;
+  border: 1px solid var(--mpf-border);
+  padding: 12px 14px 14px;
+}
+
+.mpf-price__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mpf-price__title {
+  font-size: .9rem;
+  font-weight: 600;
   color: var(--mpf-text);
 }
 
-/* ========== Small screens tweaks ========== */
-@media (max-width: 480px) {
-  .merlin-card__body { padding: 12px; }
-  .merlin-card__price { gap: .35rem; }
-  .merlin-price__badge { font-size: .75rem; }
-  .merlin-toolbar-form select { font-size: .9rem; }
+.mpf-price__values {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--mpf-text);
 }
 
-/* --- Mobile fixes: prevent right-side clipping and keep grid at 2-up --- */
-.merlin-card, .merlin-card * { box-sizing: border-box; }
-
-.merlin-card__body,
-.merlin-card__price { min-width: 0; }  /* allow flex/grid to shrink without overflow */
-
-.merlin-card__price {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  flex-wrap: wrap;      /* wrap long prices/badges onto the next line */
-  line-height: 1.2;
+.mpf-price__track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  margin: 12px 2px 18px;
 }
 
-/* Make sure long prices/badges can wrap instead of pushing out of the card */
-.merlin-price--old,
-.merlin-price--special,
-.merlin-price--regular,
-.merlin-price__badge { white-space: normal; }
-
-@media (max-width: 768px){
-  /* enforce 2 columns on phones, reduce gaps slightly */
-  .merlin-grid-cards{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    padding: 0 8px;  /* tiny side padding to avoid edge clipping */
+.mpf-price__progress {
+  position: absolute;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--mpf-primary), var(--mpf-success));
   }
 
-  /* slightly tighter spacing inside the card on phones */
-  .merlin-card__body { padding: 12px; }
-
-  /* keep badge readable but compact */
-  .merlin-price__badge{ font-size: .85rem; padding: .15rem .4rem; }
-
-  /* ensure the CTA never gets clipped; it can wrap below the price if needed */
-  .merlin-card__cta {
-    max-width: 100%;
-    display: inline-block;
-    margin-top: 4px;
-  }
+.mpf-price__ranges {
+  position: relative;
+  height: 0;
 }
 
-/* Very small phones: single column */
-@media (max-width: 360px){
-  .merlin-grid-cards{
-    grid-template-columns: 1fr;
-    padding: 0 8px;
-  }
-}
-
-/* Attribute-set hero image block */
-.merlin-attrset-hero {
-  background: #fff;
-  border: 1px solid var(--mpf-border);
-  border-radius: 12px;
-  padding: 10px;
-  display: block;
-}
-
-.merlin-attrset-hero img {
-  display: block;
+.mpf-price__range {
+  position: absolute;
+  left: 0;
+  right: 0;
   width: 100%;
-  height: auto;
-  max-height: 160px;         /* small, wide band */
-  object-fit: cover;
-  border-radius: 8px;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+  outline: none;
+  height: 0;
+  top: -30px; /* sits thumbs nicely on track */
+  }
+
+/* Thumbs */
+.mpf-price__range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid var(--mpf-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .2); 
+  } 
+  .mpf-price__range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid var(--mpf-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, .2); 
+  }
+
+/* Hide native tracks */
+.mpf-price__range::-webkit-slider-runnable-track { background: transparent; }
+.mpf-price__range::-moz-range-track { background: transparent; }
+
+@media (max-width: 480px) {
+  .mpf-price {
+    padding: 10px 12px 12px;
+  }
+  .mpf-price__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 
-/* Keep it tidy on small screens */
-@media (max-width: 900px){
-  .merlin-attrset-hero img { max-height: 140px; }
+/* ========== Results summary line ========== */ 
+.merlin-results__summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 2rem;
+  color: var(--mpf-muted);
+  flex-wrap: wrap;
 }
-@media (max-width: 480px){
-  .merlin-attrset-hero img { max-height: 120px; }
+
+.merlin-results__summary-main {
+  font-weight: 600;
+  color: var(--mpf-text);
+}
+
+.merlin-results__summary-meta {
+  opacity: 1;
+}
+
+/* Empty state variant */
+.merlin-results__summary--empty {
+  justify-content: flex-start;
+  margin-bottom: 8px;
+}
+
+/* Toolbar: stack nicely on small screens, stay horizontal on desktop */ @media (max-width: 640px) {
+  .merlin-results__toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .merlin-toolbar-form {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }

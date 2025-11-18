@@ -1,63 +1,98 @@
 <?php
-/** @var \Merlin\ProductFinder\Block\Results $block */
-$collection = $block->getCollection();
+/** @var \Merlin\ProductFinder\Block\Results $block */ $collection = $block->getCollection();
 $params     = $block->getFinderParams();
 $order      = $params['order'];
 $dir        = $params['dir'];
 $limit      = (int)$params['limit'];
 
-$currentUrl = $block->getUrl('*/*/*', ['_current' => true, '_use_rewrite' => true]);
-$baseQuery  = $_GET ?? [];
+$currentUrl = $block->getUrl('*/*/*', ['_current' => true, '_use_rewrite' => true]); $baseQuery  = $_GET ?? [];
 
-// we'll use the catalog image helper to get a resized image
+// image helper
 $om          = \Magento\Framework\App\ObjectManager::getInstance();
-/** @var \Magento\Catalog\Helper\Image $imageHelper */
-$imageHelper = $om->get(\Magento\Catalog\Helper\Image::class);
-
-// choose a role that exists on most themes; we can change to product_page_image_small later
+/** @var \Magento\Catalog\Helper\Image $imageHelper */ $imageHelper = $om->get(\Magento\Catalog\Helper\Image::class);
 $imageRole   = 'category_page_grid';
+$thumbW      = 300;
+$thumbH      = 300;
 
-// thumbnail size – adjust to taste
-$thumbW = 300;
-$thumbH = 300;
-?>
-<!-- <style>
-    .merlin-card__price { display:flex; align-items:center; gap:.5rem; }
-    .merlin-price--old { text-decoration: line-through; opacity:.7; }
-    .merlin-price--special { font-weight:600; }
-    .merlin-price__badge { background:#e53935; color:#fff; border-radius:3px; padding:.1rem .35rem; font-size:2rem; line-height:1; }
-</style> -->
+// collection / summary
+$total   = (int)$collection->getSize();
+$curPage = max(1, (int)$collection->getCurPage());
+$from    = $total ? (($curPage - 1) * $limit) + 1 : 0;
+$to      = $total ? min($from + $collection->count() - 1, $total) : 0;
 
-<div class="merlin-results">
+// sort label (simple, safe PHP)
+$orderLabel = (string)__('Name');
+if ($order === 'price') {
+    $orderLabel = (string)__('Price');
+} elseif ($order === 'created_at') {
+    $orderLabel = (string)__('Newest');
+}
+
+// direction label (ASCII only)
+$dirLabel = ($dir === 'DESC') ? 'Z-A' : 'A-Z'; ?> <div class="merlin-results">
+
     <div class="merlin-results__toolbar">
-        <form method="get" action="<?= $block->escapeUrl($currentUrl) ?>" class="merlin-toolbar-form">
-            <?php foreach ($baseQuery as $k => $v): if (in_array($k, ['order','dir','limit','p'])) continue;
-                if (is_array($v)) {
-                    foreach ($v as $vv): ?>
-                        <input type="hidden" name="<?= $block->escapeHtmlAttr($k) ?>[]" value="<?= $block->escapeHtmlAttr($vv) ?>">
-                    <?php endforeach;
-                } else { ?>
-                    <input type="hidden" name="<?= $block->escapeHtmlAttr($k) ?>" value="<?= $block->escapeHtmlAttr($v) ?>">
-                <?php } ?>
+        <div class="merlin-results__summary <?= $total ? '' : 'merlin-results__summary--empty' ?>">
+            <?php if ($total): ?>
+                <span class="merlin-results__summary-main">
+                    <?= $from ?>-<?= $to ?> <?= __('of') ?> <?= $total ?> <?= __('products found') ?>
+                </span>
+                <span class="merlin-results__summary-meta">
+                    &bull; <?= __('Sorted by') ?>
+                    <?= $block->escapeHtml($orderLabel) ?>
+                    (<?= $block->escapeHtml($dirLabel) ?>)
+                </span>
+            <?php else: ?>
+                <span class="merlin-results__summary-main">
+                    <?= __('No products found for your current filters.') ?>
+                </span>
+            <?php endif; ?>
+        </div>
+
+        <form method="get"
+              action="<?= $block->escapeUrl($currentUrl) ?>"
+              class="merlin-toolbar-form">
+
+            <?php foreach ($baseQuery as $k => $v): ?>
+                <?php
+                if (in_array($k, ['order','dir','limit','p'], true)) {
+                    continue;
+                }
+                ?>
+                <?php if (is_array($v)): ?>
+                    <?php foreach ($v as $vv): ?>
+                        <input type="hidden"
+                               name="<?= $block->escapeHtmlAttr($k) ?>[]"
+                               value="<?= $block->escapeHtmlAttr($vv) ?>" />
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <input type="hidden"
+                           name="<?= $block->escapeHtmlAttr($k) ?>"
+                           value="<?= $block->escapeHtmlAttr($v) ?>" />
+                <?php endif; ?>
             <?php endforeach; ?>
 
-            <label><?= __('Sort By') ?></label>
-            <select name="order" onchange="this.form.submit()">
-                <option value="name" <?= $order==='name' ? 'selected' : '' ?>><?= __('Name') ?></option>
-                <option value="price" <?= $order==='price' ? 'selected' : '' ?>><?= __('Price') ?></option>
-                <option value="created_at" <?= $order==='created_at' ? 'selected' : '' ?>><?= __('Newest') ?></option>
-            </select>
-            <select name="dir" onchange="this.form.submit()">
-                <option value="ASC" <?= $dir==='ASC' ? 'selected' : '' ?>><?= __('Asc') ?></option>
-                <option value="DESC" <?= $dir==='DESC' ? 'selected' : '' ?>><?= __('Desc') ?></option>
-            </select>
+            <div class="merlin-toolbar-group">
+                <label><?= __('Sort By') ?></label>
+                <select name="order" onchange="this.form.submit()">
+                    <option value="name" <?= $order === 'name' ? 'selected' : '' ?>><?= __('Name') ?></option>
+                    <option value="price" <?= $order === 'price' ? 'selected' : '' ?>><?= __('Price') ?></option>
+                    <option value="created_at" <?= $order === 'created_at' ? 'selected' : '' ?>><?= __('Newest') ?></option>
+                </select>
+                <select name="dir" onchange="this.form.submit()">
+                    <option value="ASC" <?= $dir === 'ASC' ? 'selected' : '' ?>><?= __('Asc') ?></option>
+                    <option value="DESC" <?= $dir === 'DESC' ? 'selected' : '' ?>><?= __('Desc') ?></option>
+                </select>
+            </div>
 
-            <label><?= __('Show') ?></label>
-            <select name="limit" onchange="this.form.submit()">
-                <?php foreach ([12,24,48] as $l): ?>
-                    <option value="<?= $l ?>" <?= $limit===$l ? 'selected' : '' ?>><?= $l ?></option>
-                <?php endforeach; ?>
-            </select>
+            <div class="merlin-toolbar-group">
+                <label><?= __('Show') ?></label>
+                <select name="limit" onchange="this.form.submit()">
+                    <?php foreach ([12, 24, 48] as $l): ?>
+                        <option value="<?= $l ?>" <?= $limit === $l ? 'selected' : '' ?>><?= $l ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
         </form>
     </div>
 
@@ -66,19 +101,21 @@ $thumbH = 300;
     <?php else: ?>
         <?php
         // top pager
+        /** @var \Magento\Theme\Block\Html\Pager $pagerTop */
         $pagerTop = $block->getLayout()->createBlock(\Magento\Theme\Block\Html\Pager::class);
         if ($pagerTop) {
-            $pagerTop->setAvailableLimit([12=>12,24=>24,48=>48])
+            $pagerTop->setAvailableLimit([12 => 12, 24 => 24, 48 => 48])
                 ->setShowPerPage(false)
                 ->setLimit($limit)
                 ->setCollection($collection);
             echo $pagerTop->toHtml();
         }
         ?>
+
         <div class="merlin-grid-cards">
             <?php foreach ($collection as $product): ?>
                 <?php
-                // build a resized image url; if product has no image, we'll fallback below
+                // build a resized image url
                 $resizedUrl = '';
                 try {
                     $resizedUrl = $imageHelper
@@ -89,7 +126,6 @@ $thumbH = 300;
                     $resizedUrl = '';
                 }
 
-                // Use pricing helper (ignores special from/to dates by design)
                 $prices = $block->getDisplayPrices($product);
                 ?>
                 <div class="merlin-card">
@@ -127,11 +163,13 @@ $thumbH = 300;
                 </div>
             <?php endforeach; ?>
         </div>
+
         <?php
         // bottom pager
+        /** @var \Magento\Theme\Block\Html\Pager $pagerBottom */
         $pagerBottom = $block->getLayout()->createBlock(\Magento\Theme\Block\Html\Pager::class);
         if ($pagerBottom) {
-            $pagerBottom->setAvailableLimit([12=>12,24=>24,48=>48])
+            $pagerBottom->setAvailableLimit([12 => 12, 24 => 24, 48 => 48])
                 ->setShowPerPage(false)
                 ->setLimit($limit)
                 ->setCollection($collection);
