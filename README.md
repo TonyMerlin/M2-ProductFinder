@@ -15,10 +15,13 @@ Fix: Support multi select attributes
 Add: default html values for pre and post form content
 
 
+
+
 #v2.0.1
 
 
 Fix attribute set image upload
+
 
 
 
@@ -34,10 +37,12 @@ Fix: Cleanup the frontend UX and results page
 Fix: Cleanup the configuration page removing all legacy options.
 
 
+
 v1.6.7
 
 
 Fix: price slider to respect special prices and fall back to base prices if non found.
+
 
 
 v1.6.6
