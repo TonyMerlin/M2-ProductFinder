@@ -69,6 +69,7 @@ class Results extends Action
             $collection->addAttributeToFilter('attribute_set_id', $attrSetId);
         }
 
+    // small helper to safely apply
     $applyAttr = function (string $code, $values) use ($collection) {
      if (!$code || $values === null || $values === '' || $values === []) {
         return;
