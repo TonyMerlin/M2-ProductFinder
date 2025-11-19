@@ -118,6 +118,7 @@
                        showInWebsite="1"
                        showInStore="1">
                     <label>Custom HTML (Above Form)</label>
+                    <default><![CDATA[<p style="font-size:20px;padding-left:15%;"<span><b>Q</b>uick <b>P</b>roduct <b>F</b>inder</span></p>]]></default> 
                     <show_in_wysiwyg>1</show_in_wysiwyg>
                 </field>
 
@@ -129,6 +130,7 @@
                        showInWebsite="1"
                        showInStore="1">
                     <label>Custom HTML (Below Form)</label>
+                    <default><![CDATA[<p style="font-size:20px;"<span>Quickly find your perfect product...</p>]]></default>
                     <show_in_wysiwyg>1</show_in_wysiwyg>
                 </field>
             </group>
