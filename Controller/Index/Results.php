@@ -69,26 +69,40 @@ class Results extends Action
             $collection->addAttributeToFilter('attribute_set_id', $attrSetId);
         }
 
-        // small helper to safely apply
-        $applyAttr = function (string $code, $values) use ($collection) {
-            if (!$code || $values === null || $values === '' || $values === []) {
-                return;
-            }
-            $attr = $this->eavConfig->getAttribute('catalog_product', $code);
-            if (!$attr || !$attr->getId()) {
-                return; // invalid attribute code ? skip
-            }
-            // normalise to array
-            $values = is_array($values) ? $values : [$values];
-            // remove empties
-            $values = array_values(array_filter($values, static function ($v) {
-                return $v !== '' && $v !== null;
-            }));
-            if (!$values) {
-                return;
-            }
-            $collection->addAttributeToFilter($code, ['in' => $values]);
-        };
+    // small helper to safely apply
+    $applyAttr = function (string $code, $values) use ($collection) {
+     if (!$code || $values === null || $values === '' || $values === []) {
+        return;
+    }
+
+    $attr = $this->eavConfig->getAttribute('catalog_product', $code);
+    if (!$attr || !$attr->getId()) {
+        return; // invalid attribute code ? skip
+    }
+
+    // normalise to array
+    $values = is_array($values) ? $values : [$values];
+
+    // remove empties
+    $values = array_values(array_filter($values, static function ($v) {
+        return $v !== '' && $v !== null;
+    }));
+    if (!$values) {
+        return;
+    }
+
+    // Detect multiselect and choose the correct condition
+    $frontendInput = (string)$attr->getFrontendInput();
+    if ($frontendInput === 'multiselect') {
+        // multiselect is stored as comma-separated values, so we must use finset
+        $condition = ['finset' => $values];
+    } else {
+        // normal single-select / dropdown / int attributes
+        $condition = ['in' => $values];
+    }
+
+    $collection->addAttributeToFilter($code, $condition);
+};
 
         // 4) Profile-based filtering
         if ($attrSetId && isset($profiles[$attrSetId]) && is_array($profiles[$attrSetId])) {

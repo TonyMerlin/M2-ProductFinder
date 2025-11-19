@@ -3,10 +3,25 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
+#v2.0.2
+
+
+Fix: Currency symbol cleanup, encoding mismatch and a broken literal in JavaScript.
+
+
+Add: Support multi select attributes
+
+
+Add: default html values for pre and post form content
+
+
+
+
 #v2.0.1
 
 
 Fix attribute set image upload
+
 
 
 
@@ -22,10 +37,12 @@ Fix: Cleanup the frontend UX and results page
 Fix: Cleanup the configuration page removing all legacy options.
 
 
+
 v1.6.7
 
 
 Fix: price slider to respect special prices and fall back to base prices if non found.
+
 
 
 v1.6.6

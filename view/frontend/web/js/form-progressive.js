@@ -68,8 +68,8 @@ define(['jquery'], function ($) {
         var $priceProg    = $form.find('#mpf-price-progress');
 
         function formatCurrency(val) {
-            val = parseFloat(val || 0);
-            return 'Â£' + val.toFixed(0);
+        val = parseFloat(val || 0);
+        return '\u00A3' + val.toFixed(0);
         }
 
         function syncPriceUI() {

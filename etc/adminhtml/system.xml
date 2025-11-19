@@ -118,6 +118,7 @@
                        showInWebsite="1"
                        showInStore="1">
                     <label>Custom HTML (Above Form)</label>
+                    <default><![CDATA[<p style="font-size:20px;padding-left:15%;"<span><b>Q</b>uick <b>P</b>roduct <b>F</b>inder</span></p>]]></default> 
                     <show_in_wysiwyg>1</show_in_wysiwyg>
                 </field>
 
@@ -129,95 +130,10 @@
                        showInWebsite="1"
                        showInStore="1">
                     <label>Custom HTML (Below Form)</label>
+                    <default><![CDATA[<p style="font-size:20px;"<span>Quickly find your perfect product...</p>]]></default>
                     <show_in_wysiwyg>1</show_in_wysiwyg>
                 </field>
             </group>
-
-            <!-- ================== LEGACY MAPPING (optional to remove later) ================== -->
-<!--            <group id="mapping"
-                   translate="label"
-                   sortOrder="30"
-                   showInDefault="1"
-                   showInWebsite="1"
-                   showInStore="1">
-                <label>Attribute Mapping (Global / Legacy)</label>
-
-                <field id="product_type"
-                       translate="label"
-                       type="text"
-                       sortOrder="10"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Product Type Attribute Code</label>
-                    <comment>Deprecated if using per-attribute-set profiles.</comment>
-                </field>
-
-                <field id="color"
-                       translate="label"
-                       type="text"
-                       sortOrder="20"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Color Attribute Code</label>
-                    <comment>Deprecated if using per-attribute-set profiles.</comment>
-                </field>
-
-                <field id="extras"
-                       translate="label"
-                       type="text"
-                       sortOrder="30"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Extra Filters (JSON map)</label>
-                    <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\AttributeMap</frontend_model>
-                    <comment>Deprecated. Use profiles JSON instead.</comment>
-                </field>
-
-                <field id="price_attribute"
-                       translate="label"
-                       type="text"
-                       sortOrder="40"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Price Attribute</label>
-                    <comment>Usually "price".</comment>
-                </field>
-
-                <field id="price_min"
-                       translate="label"
-                       type="text"
-                       sortOrder="50"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Min Price</label>
-                </field>
-
-                <field id="price_max"
-                       translate="label"
-                       type="text"
-                       sortOrder="60"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Max Price</label>
-                </field>
-
-                <field id="price_step"
-                       translate="label"
-                       type="text"
-                       sortOrder="70"
-                       showInDefault="1"
-                       showInWebsite="1"
-                       showInStore="1">
-                    <label>Price Step</label>
-                </field>
-            </group> -->
-
         </section>
     </system>
 </config>

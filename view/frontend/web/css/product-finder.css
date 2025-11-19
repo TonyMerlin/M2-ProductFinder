@@ -116,7 +116,7 @@
   border-radius: 10px;
   border: 1px solid var(--mpf-border);
   background: #fff;
-  padding: 8px 12px;
+  padding: 0px 12px;
   font-size: 1.7rem;
   color: var(--mpf-text);
   transition: border-color .18s ease, box-shadow .18s ease;
