@@ -41,7 +41,7 @@ class Image extends Action
 
         try {
             // input name from <input type="file" name="profile_image">
-            $uploader = $this->uploaderFactory->create(['fileId' => 'profile_image']);
+            $uploader = $this->uploaderFactory->create(['fileId' => 'image']);
             $uploader->setAllowedExtensions(['jpg','jpeg','png','gif','webp','avif']);
             $uploader->setAllowRenameFiles(true);
             $uploader->setFilesDispersion(true); // hashed subfolders
