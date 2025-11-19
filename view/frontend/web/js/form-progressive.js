@@ -69,7 +69,7 @@ define(['jquery'], function ($) {
 
         function formatCurrency(val) {
         val = parseFloat(val || 0);
-        return '£' + val.toFixed(0);
+        return '\u00A3' + val.toFixed(0);
         }
 
         function syncPriceUI() {
