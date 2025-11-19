@@ -7,7 +7,8 @@ Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute m
 
 
 Fix: Currency symbol cleanup, encoding mismatch and a broken literal in JavaScript.
-
+Fix: Support multi select attributes
+Add: default html values for pre and post form content
 
 
 #v2.0.1
