@@ -85,7 +85,7 @@
                        showInStore="1">
                        <label>Attribute Set Profiles (JSON)</label>
                        <frontend_model>Merlin\ProductFinder\Block\Adminhtml\System\Config\Field\Profiles</frontend_model>
-                       <comment>Build per-attribute-set finder profiles.</comment>
+                       <comment>Click here first to save your profile JSON before clicking "Save Config".</comment>
                 </field>
             </group>
 
