@@ -130,7 +130,7 @@ Fix: This release changes the way the finder works to make sure only attribute v
 Fix: Make each step open after previous step is complete
 
 
-# Inital Realease v1.3.0
+# Inital Release v1.3.0
 ## Features
 - Enable/disable module.
 - Drag-and-drop section ordering (Attribute Set, Product Type, Colour, Price, Extras).
