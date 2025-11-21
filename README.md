@@ -3,6 +3,13 @@
 Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute mapping, price slider, and results page with optional layered navigation.
 
 
+#v2.0.4
+
+
+Fix:  Element 'show_in_wysiwyg': This element is not expected.
+
+
+
 #v2.0.3
 
 
