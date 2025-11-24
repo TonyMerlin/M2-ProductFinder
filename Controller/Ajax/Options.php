@@ -96,10 +96,26 @@ class Options extends Action
 
         $col = $this->productCollectionFactory->create();
         $col->addAttributeToSelect(array_merge([$nextCode], array_keys($filters)));
-        $col->addFieldToFilter('attribute_set_id', $setId);
         $col->addAttributeToFilter('type_id', 'simple');
         $col->addAttributeToFilter('status', 1);
-        $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
+        // Allow not-visible simple children so configurable parents can contribute options
+        $col->addAttributeToFilter('visibility', ['in' => [1,2,3,4]]);
+
+        // When profiles are configured on configurable parents, include their child simples
+        // even if those children use a different attribute set. This makes progressive filtering
+        // keep returning options after the first selection.
+        $col->getSelect()
+            ->joinLeft(
+                ['cpsl' => $col->getTable('catalog_product_super_link')],
+                'cpsl.product_id = e.entity_id',
+                []
+            )
+            ->joinLeft(
+                ['parent' => $col->getTable('catalog_product_entity')],
+                'parent.entity_id = cpsl.parent_id',
+                []
+            )
+            ->where('(e.attribute_set_id = ? OR parent.attribute_set_id = ?)', [$setId, $setId]);
 
         // legacy stock status (works with MSI too)
         $css = $col->getTable('cataloginventory_stock_status');

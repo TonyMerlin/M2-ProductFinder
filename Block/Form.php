@@ -339,7 +339,8 @@ class Form extends Template
             $col->addFieldToFilter('attribute_set_id', $sid);
             $col->addAttributeToFilter('type_id', 'simple');
             $col->addAttributeToFilter('status', 1);
-            $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
+            // Include not-visible simples so configurable parents still surface options
+            $col->addAttributeToFilter('visibility', ['in' => [1,2,3,4]]);
 
             $resource   = $col->getResource();
             $css        = $resource->getTable('cataloginventory_stock_status');
