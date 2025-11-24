@@ -94,6 +94,8 @@ class Options extends Action
         $store     = $this->storeManager->getStore();
         $websiteId = (int)$store->getWebsiteId();
 
+        $allCodes = array_values(array_unique(array_merge([$nextCode], array_keys($filters))));
+
         $col = $this->productCollectionFactory->create();
         $col->addAttributeToSelect(array_merge([$nextCode], array_keys($filters)));
         $col->addAttributeToFilter('type_id', 'simple');
@@ -125,21 +127,38 @@ class Options extends Action
             []
         );
 
-        // Apply already chosen filters. Use (eq OR finset) to support select & multiselect.
-        foreach ($filters as $code => $value) {
-            if ($value === '') {
-                continue;
+        // Preload parent attribute values for the codes we care about so we can
+        // fall back to the configurable parent when the child set doesn’t include
+        // the attribute being filtered.
+        $parentValues = [];
+        $parentIds    = [];
+        foreach ($col as $p) {
+            $pid = (int)$p->getData('parent_id');
+            if ($pid > 0) {
+                $parentIds[$pid] = true;
             }
-            $col->addAttributeToFilter([
-                ['attribute' => $code, 'eq' => $value],
-                ['attribute' => $code, 'finset' => $value],
-            ]);
+        }
+
+        if ($parentIds) {
+            $parentCol = $this->productCollectionFactory->create();
+            $parentCol->addAttributeToSelect($allCodes);
+            $parentCol->addAttributeToFilter('entity_id', ['in' => array_keys($parentIds)]);
+            foreach ($parentCol as $parent) {
+                $pid = (int)$parent->getId();
+                foreach ($allCodes as $code) {
+                    $parentValues[$pid][$code] = $parent->getData($code);
+                }
+            }
         }
 
         // Collect distinct option ids for $nextCode
         $ids = [];
         foreach ($col as $p) {
-            $val = $p->getData($nextCode);
+            if (!$this->productMatchesFilters($p, $filters, $parentValues)) {
+                continue;
+            }
+
+            $val = $this->getProductAttributeValue($p, $nextCode, $parentValues);
             if ($val === null || $val === '' || $val === false) {
                 continue;
             }
@@ -188,6 +207,77 @@ class Options extends Action
         });
 
         return $out;
+    }
+
+    /**
+     * Determine the value for an attribute, falling back to the configurable parent
+     * if the child product doesn’t carry the attribute in its own set.
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @param string $code
+     * @param array<int,array<string,mixed>> $parentValues
+     * @return mixed
+     */
+    private function getProductAttributeValue($product, string $code, array $parentValues)
+    {
+        $value = $product->getData($code);
+        if ($value !== null && $value !== '' && $value !== false) {
+            return $value;
+        }
+
+        $pid = (int)$product->getData('parent_id');
+        if ($pid > 0 && isset($parentValues[$pid][$code])) {
+            return $parentValues[$pid][$code];
+        }
+
+        return $value;
+    }
+
+    /**
+     * Check if a product satisfies the current filters using child or parent attribute values.
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @param array<string,string> $filters
+     * @param array<int,array<string,mixed>> $parentValues
+     */
+    private function productMatchesFilters($product, array $filters, array $parentValues): bool
+    {
+        foreach ($filters as $code => $expected) {
+            if ($expected === '') {
+                continue;
+            }
+
+            $value = $this->getProductAttributeValue($product, $code, $parentValues);
+            if ($value === null || $value === '' || $value === false) {
+                return false;
+            }
+
+            // Normalize to array for multiselect-friendly matching
+            $values = [];
+            if (is_string($value) && strpos($value, ',') !== false) {
+                $values = array_map('trim', explode(',', $value));
+            } elseif (is_array($value)) {
+                foreach ($value as $v) {
+                    $values[] = trim((string)$v);
+                }
+            } else {
+                $values[] = trim((string)$value);
+            }
+
+            $match = false;
+            foreach ($values as $val) {
+                if ($val !== '' && $val === $expected) {
+                    $match = true;
+                    break;
+                }
+            }
+
+            if (!$match) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** Store-scoped attribute options (mirrors your block logic, simplified) */
