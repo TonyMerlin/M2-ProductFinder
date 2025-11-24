@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Merlin\ProductFinder\Controller\Index;
 
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory as ProductCollectionFactory;
+use Magento\ConfigurableProduct\Model\ResourceModel\Product\Type\Configurable as ConfigurableType;
 use Magento\Eav\Model\Config as EavConfig;
 use Magento\Framework\App\Action\Action;
 use Magento\Framework\App\Action\Context;
@@ -20,6 +21,7 @@ class Results extends Action
     private Registry $registry;
     private EavConfig $eavConfig;
     private StoreManagerInterface $storeManager;
+    private ConfigurableType $configurableType;
 
     public function __construct(
         Context $context,
@@ -28,15 +30,17 @@ class Results extends Action
         Helper $helper,
         Registry $registry,
         EavConfig $eavConfig,
-        StoreManagerInterface $storeManager
+        StoreManagerInterface $storeManager,
+        ConfigurableType $configurableType
     ) {
         parent::__construct($context);
-        $this->pageFactory        = $pageFactory;
-        $this->collectionFactory  = $collectionFactory;
-        $this->helper             = $helper;
-        $this->registry           = $registry;
-        $this->eavConfig          = $eavConfig;
-        $this->storeManager       = $storeManager;
+        $this->pageFactory       = $pageFactory;
+        $this->collectionFactory = $collectionFactory;
+        $this->helper            = $helper;
+        $this->registry          = $registry;
+        $this->eavConfig         = $eavConfig;
+        $this->storeManager      = $storeManager;
+        $this->configurableType  = $configurableType;
     }
 
     public function execute()
@@ -59,7 +63,8 @@ class Results extends Action
             'special_price',
             'special_from_date',
             'special_to_date',
-            'small_image'
+            'small_image',
+            'type_id'
         ]);
         $collection->addAttributeToFilter('status', 1);
         $collection->addAttributeToFilter('visibility', ['in' => [2, 3, 4]]);
@@ -69,40 +74,43 @@ class Results extends Action
             $collection->addAttributeToFilter('attribute_set_id', $attrSetId);
         }
 
-    // small helper to safely apply
-    $applyAttr = function (string $code, $values) use ($collection) {
-     if (!$code || $values === null || $values === '' || $values === []) {
-        return;
-    }
+        /**
+         * Helper to apply attribute filters (incl. multiselect)
+         */
+        $applyAttr = function (string $code, $values) use ($collection) {
+            if (!$code || $values === null || $values === '' || $values === []) {
+                return;
+            }
 
-    $attr = $this->eavConfig->getAttribute('catalog_product', $code);
-    if (!$attr || !$attr->getId()) {
-        return; // invalid attribute code ? skip
-    }
+            $attr = $this->eavConfig->getAttribute('catalog_product', $code);
+            if (!$attr || !$attr->getId()) {
+                // invalid attribute code – skip
+                return;
+            }
 
-    // normalise to array
-    $values = is_array($values) ? $values : [$values];
+            // normalise to array
+            $values = is_array($values) ? $values : [$values];
 
-    // remove empties
-    $values = array_values(array_filter($values, static function ($v) {
-        return $v !== '' && $v !== null;
-    }));
-    if (!$values) {
-        return;
-    }
+            // remove empties
+            $values = array_values(array_filter($values, static function ($v) {
+                return $v !== '' && $v !== null;
+            }));
+            if (!$values) {
+                return;
+            }
 
-    // Detect multiselect and choose the correct condition
-    $frontendInput = (string)$attr->getFrontendInput();
-    if ($frontendInput === 'multiselect') {
-        // multiselect is stored as comma-separated values, so we must use finset
-        $condition = ['finset' => $values];
-    } else {
-        // normal single-select / dropdown / int attributes
-        $condition = ['in' => $values];
-    }
+            // Detect multiselect and choose the correct condition
+            $frontendInput = (string)$attr->getFrontendInput();
+            if ($frontendInput === 'multiselect') {
+                // multiselect is stored as comma-separated values, so we must use finset
+                $condition = ['finset' => $values];
+            } else {
+                // normal single-select / dropdown / int attributes
+                $condition = ['in' => $values];
+            }
 
-    $collection->addAttributeToFilter($code, $condition);
-};
+            $collection->addAttributeToFilter($code, $condition);
+        };
 
         // 4) Profile-based filtering
         if ($attrSetId && isset($profiles[$attrSetId]) && is_array($profiles[$attrSetId])) {
@@ -171,8 +179,8 @@ class Results extends Action
             $max = ($max !== '' ? (float)$max : null);
 
             if ($min !== null || $max !== null) {
-                $store     = $this->storeManager->getStore();
-                $websiteId = (int)$store->getWebsiteId();
+                $store          = $this->storeManager->getStore();
+                $websiteId      = (int)$store->getWebsiteId();
                 $customerGroupId = 0; // adjust if you support customer groups
 
                 $priceIndexTable = $collection->getTable('catalog_product_index_price');
@@ -218,7 +226,91 @@ class Results extends Action
         }
         $collection->setCurPage($p)->setPageSize($limit);
 
-        // 7) register for the block/template
+        /**
+         * 7) CONFIGURABLE SUPPORT – swap child simples to parent configurables
+         *
+         * At this point $collection contains the filtered products (often simples).
+         * We detect parent configurables and replace the collection with a
+         * configurable-parent collection, preserving:
+         *   - attribute set filter
+         *   - status / visibility
+         *   - price slider logic
+         *   - sort & pagination
+         */
+        $useConfigurableParents = true; // could be made configurable later
+
+        if ($useConfigurableParents && $collection->getSize()) {
+            $childIds = $collection->getColumnValues('entity_id');
+            $parentIds = [];
+
+            if ($childIds) {
+                $parentByChild = $this->configurableType->getParentIdsByChild($childIds);
+                foreach ($parentByChild as $childId => $parents) {
+                    foreach ($parents as $pid) {
+                        $parentIds[(int)$pid] = (int)$pid;
+                    }
+                }
+            }
+
+            if (!empty($parentIds)) {
+                // build a new collection of parent configurables
+                $parentCollection = $this->collectionFactory->create();
+                $parentCollection->addAttributeToSelect([
+                    'name',
+                    'price',
+                    'special_price',
+                    'special_from_date',
+                    'special_to_date',
+                    'small_image',
+                    'type_id'
+                ]);
+                $parentCollection->addAttributeToFilter('entity_id', ['in' => array_values($parentIds)]);
+                $parentCollection->addAttributeToFilter('status', 1);
+                $parentCollection->addAttributeToFilter('visibility', ['in' => [2, 3, 4]]);
+
+                // if attribute set was chosen, respect it for parents too
+                if ($attrSetId > 0) {
+                    $parentCollection->addAttributeToFilter('attribute_set_id', $attrSetId);
+                }
+
+                // re-apply price slider on parents to keep behaviour consistent
+                if ($min !== null || $max !== null) {
+                    $store          = $this->storeManager->getStore();
+                    $websiteId      = (int)$store->getWebsiteId();
+                    $customerGroupId = 0;
+
+                    $priceIndexTable = $parentCollection->getTable('catalog_product_index_price');
+                    $alias           = 'mpf_price_idx';
+
+                    $selectParent = $parentCollection->getSelect();
+                    $fromParent   = $selectParent->getPart(\Zend_Db_Select::FROM);
+                    if (!isset($fromParent[$alias])) {
+                        $selectParent->joinLeft(
+                            [$alias => $priceIndexTable],
+                            $alias . '.entity_id = e.entity_id'
+                            . ' AND ' . $alias . '.website_id = ' . (int)$websiteId
+                            . ' AND ' . $alias . '.customer_group_id = ' . (int)$customerGroupId,
+                            []
+                        );
+                    }
+
+                    if ($min !== null) {
+                        $selectParent->where($alias . '.final_price >= ?', $min);
+                    }
+                    if ($max !== null) {
+                        $selectParent->where($alias . '.final_price <= ?', $max);
+                    }
+                }
+
+                // apply same sort & pagination to parent collection
+                $parentCollection->setOrder($order, $dir);
+                $parentCollection->setCurPage($p)->setPageSize($limit);
+
+                $collection = $parentCollection;
+            }
+        }
+
+        // 8) register for the block/template
         $this->registry->register('merlin_productfinder_collection', $collection);
         $this->registry->register('merlin_productfinder_params', [
             'order' => $order,
@@ -227,7 +319,7 @@ class Results extends Action
             'limit' => $limit
         ]);
 
-        // 8) render page
+        // 9) render page
         $page = $this->pageFactory->create();
         $page->getConfig()->getTitle()->set(__('Finder Results'));
         return $page;

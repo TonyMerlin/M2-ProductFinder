@@ -1,6 +1,4 @@
-<?php
-declare(strict_types=1);
-
+<?php declare(strict_types=1);
 namespace Merlin\ProductFinder\Block;
 
 use Magento\Catalog\Model\ResourceModel\Category\CollectionFactory as CategoryCollectionFactory;
@@ -305,7 +303,7 @@ class Form extends Template
         $msiTableName    = null;
 
         try {
-            // MSI service is optional â€” resolve lazily
+            // MSI service is optional — resolve lazily
             $om = \Magento\Framework\App\ObjectManager::getInstance();
             if ($om->has(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class)) {
                 /** @var \Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface $stockResolver */
@@ -336,10 +334,10 @@ class Form extends Template
 
             $col = $this->productCollectionFactory->create();
             $col->addAttributeToSelect($attrCodes);
-            $col->addFieldToFilter('attribute_set_id', $sid);
             $col->addAttributeToFilter('type_id', 'simple');
             $col->addAttributeToFilter('status', 1);
-            $col->addAttributeToFilter('visibility', ['in' => [2,3,4]]);
+            // Include not-visible simples so configurable parents still surface options
+            $col->addAttributeToFilter('visibility', ['in' => [1,2,3,4]]);
 
             $resource   = $col->getResource();
             $css        = $resource->getTable('cataloginventory_stock_status');
@@ -359,7 +357,7 @@ class Form extends Template
                 }
             }
 
-            // Fallback: legacy stock status view (works even with MSI as itâ€™s kept in sync)
+            // Fallback: legacy stock status view (works even with MSI as it’s kept in sync)
             if (!$didJoin) {
                 $col->getSelect()->joinInner(
                     ['css' => $css],
@@ -368,13 +366,37 @@ class Form extends Template
                 );
             }
 
+            // Preload parent attribute values for the codes we care about so we can
+            // fall back to the configurable parent when the child set doesn’t include
+            // the attribute being checked.
+            $parentValues = [];
+            $parentIds    = [];
+            foreach ($col as $product) {
+                $pid = (int)$product->getData('parent_id');
+                if ($pid > 0) {
+                    $parentIds[$pid] = true;
+                }
+            }
+
+            if ($parentIds) {
+                $parentCol = $this->productCollectionFactory->create();
+                $parentCol->addAttributeToSelect($attrCodes);
+                $parentCol->addAttributeToFilter('entity_id', ['in' => array_keys($parentIds)]);
+                foreach ($parentCol as $parent) {
+                    $pid = (int)$parent->getId();
+                    foreach ($attrCodes as $code) {
+                        $parentValues[$pid][$code] = $parent->getData($code);
+                    }
+                }
+            }
+
             // Collect used option IDs per attribute code (handles single & multiselect)
             $used = [];
             foreach ($attrCodes as $code) { $used[$code] = []; }
 
             foreach ($col as $product) {
                 foreach ($attrCodes as $code) {
-                    $val = $product->getData($code);
+                    $val = $this->getProductAttributeValue($product, $code, $parentValues);
                     if ($val === null || $val === '' || $val === false) continue;
 
                     if (is_string($val) && strpos($val, ',') !== false) {
@@ -463,6 +485,30 @@ class Form extends Template
         }
 
         return array_values(array_unique(array_filter(array_map('trim', $codes))));
+    }
+
+    /**
+     * Determine the value for an attribute, falling back to the configurable parent
+     * if the child product doesn’t carry the attribute in its own set.
+     *
+     * @param \Magento\Catalog\Model\Product $product
+     * @param string $code
+     * @param array<int,array<string,mixed>> $parentValues
+     * @return mixed
+     */
+    private function getProductAttributeValue($product, string $code, array $parentValues)
+    {
+        $value = $product->getData($code);
+        if ($value !== null && $value !== '' && $value !== false) {
+            return $value;
+        }
+
+        $pid = (int)$product->getData('parent_id');
+        if ($pid > 0 && isset($parentValues[$pid][$code])) {
+            return $parentValues[$pid][$code];
+        }
+
+        return $value;
     }
 
     /* ==================== Attribute options (robust + swatch-safe) ==================== */
