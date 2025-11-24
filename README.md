@@ -6,7 +6,10 @@ Drill-down product finder for Magento 2.4.5+. Admin-driven sections, attribute m
 #v2.1.0
 
 
-Add: Add support for configurable products to show in the finder.
+Add: Add configurable product support
+
+
+Fix: Fix type error in results constructor
 
 
 
