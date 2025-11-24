@@ -76,6 +76,22 @@ class Form extends Template
     {
         return $this->helper->getConfig($path);
     }
+    /* ==================== Enabled or not from config ==================== */
+
+    protected function _toHtml()
+   {
+    try {
+        // Respect the on/off switch in system config
+        if (!$this->helper->isEnabled()) {
+            return '';
+        }
+    } catch (\Throwable $e) {
+        // In case helper/config explodes for any reason, fail closed
+        return '';
+    }
+
+    return parent::_toHtml();
+}
 
     /* ==================== Attribute sets from config ==================== */
 
@@ -289,7 +305,7 @@ class Form extends Template
         $msiTableName    = null;
 
         try {
-            // MSI service is optional — resolve lazily
+            // MSI service is optional â€” resolve lazily
             $om = \Magento\Framework\App\ObjectManager::getInstance();
             if ($om->has(\Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface::class)) {
                 /** @var \Magento\InventorySalesApi\Api\GetAssignedStockIdForWebsiteInterface $stockResolver */
@@ -343,7 +359,7 @@ class Form extends Template
                 }
             }
 
-            // Fallback: legacy stock status view (works even with MSI as it’s kept in sync)
+            // Fallback: legacy stock status view (works even with MSI as itâ€™s kept in sync)
             if (!$didJoin) {
                 $col->getSelect()->joinInner(
                     ['css' => $css],
