@@ -341,23 +341,6 @@ class Form extends Template
             // Include not-visible simples so configurable parents still surface options
             $col->addAttributeToFilter('visibility', ['in' => [1,2,3,4]]);
 
-            // When profiles are configured on configurable parents, include their child simples
-            // even if those children use a different attribute set. This mirrors the AJAX
-            // filtering logic so the initial options align with progressive selections.
-            $col->getSelect()
-                ->joinLeft(
-                    ['cpsl' => $col->getTable('catalog_product_super_link')],
-                    'cpsl.product_id = e.entity_id',
-                    []
-                )
-                ->joinLeft(
-                    ['parent' => $col->getTable('catalog_product_entity')],
-                    'parent.entity_id = cpsl.parent_id',
-                    []
-                )
-                ->where('(e.attribute_set_id = ? OR parent.attribute_set_id = ?)', [$sid, $sid])
-                ->columns(['parent_id' => 'cpsl.parent_id']);
-
             $resource   = $col->getResource();
             $css        = $resource->getTable('cataloginventory_stock_status');
 

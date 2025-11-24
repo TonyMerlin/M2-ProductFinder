@@ -97,7 +97,7 @@ class Options extends Action
         $allCodes = array_values(array_unique(array_merge([$nextCode], array_keys($filters))));
 
         $col = $this->productCollectionFactory->create();
-        $col->addAttributeToSelect($allCodes);
+        $col->addAttributeToSelect(array_merge([$nextCode], array_keys($filters)));
         $col->addAttributeToFilter('type_id', 'simple');
         $col->addAttributeToFilter('status', 1);
         // Allow not-visible simple children so configurable parents can contribute options
@@ -117,8 +117,7 @@ class Options extends Action
                 'parent.entity_id = cpsl.parent_id',
                 []
             )
-            ->where('(e.attribute_set_id = ? OR parent.attribute_set_id = ?)', [$setId, $setId])
-            ->columns(['parent_id' => 'cpsl.parent_id']);
+            ->where('(e.attribute_set_id = ? OR parent.attribute_set_id = ?)', [$setId, $setId]);
 
         // legacy stock status (works with MSI too)
         $css = $col->getTable('cataloginventory_stock_status');
